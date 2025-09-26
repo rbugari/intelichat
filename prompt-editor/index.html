@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Prompts de Agentes Inteligentes - InteliChat</title>
+    
+    <!-- EasyMDE CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Barra de Herramientas Global -->
+        <header class="global-toolbar">
+            <div class="toolbar-section-left">
+                <span class="toolbar-title">Editor de Agentes</span>
+                <div id="agentSelectorContainer" class="agent-selector-container">
+                    <select id="clienteSelect" class="form-select"><option value="">Cliente...</option></select>
+                    <select id="chatbotSelect" class="form-select" disabled><option value="">Chatbot...</option></select>
+                    <select id="agenteSelect" class="form-select" disabled><option value="">Agente...</option></select>
+                </div>
+            </div>
+            <div class="toolbar-section-right">
+                <button id="savePrompt" class="btn btn-success" disabled>💾 Guardar</button>
+                <button id="assistantBtn" class="btn btn-secondary">✨ Asistente</button>
+                <button id="validationBtn" class="btn btn-secondary">🧪 Validación</button>
+                <button id="helpBtn" class="btn btn-secondary">❓ Ayuda</button>
+                <div class="theme-switch" title="Modo oscuro / claro">
+                    <input type="checkbox" id="themeToggle"/>
+                    <div class="track" id="themeTrack"><div class="thumb">🌙</div></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Contenido Principal -->
+        <main class="main-content-grid">
+            <!-- Área de Edición Principal -->
+            <section class="main-editor-area">
+                <div class="main-tabs">
+                    <button id="tabPrompt" class="main-tab-btn active">📝 Prompt</button>
+                    <button id="tabParams" class="main-tab-btn">⚙️ Parámetros</button>
+                    <button id="tabMessages" class="main-tab-btn">💬 Mensajes</button>
+                </div>
+                <div class="main-tab-content">
+                    <!-- Contenido Pestaña Prompt -->
+                    <div id="promptContent" class="main-tab-pane active">
+                        <div class="editor-container">
+                            <textarea id="promptEditor" placeholder="Selecciona un agente para cargar su system prompt..."></textarea>
+                            <div id="autocompleteSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                        </div>
+                        <div class="editor-actions">
+                            <span id="saveStatus" class="save-status"></span>
+                            <button id="resetPrompt" class="btn btn-warning" disabled>🔄 Resetear</button>
+                        </div>
+                    </div>
+                    <!-- Contenido Pestaña Parámetros -->
+                    <div id="paramsContent" class="main-tab-pane form-container">
+                        <div class="form-group">
+                            <label for="temperatura">Temperatura</label>
+                            <input type="number" id="temperatura" class="form-input" step="0.05" min="0" max="2">
+                            <small>Controla la creatividad. Menor para respuestas predecibles, mayor para variedad.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="top_p">Top P</label>
+                            <input type="number" id="top_p" class="form-input" step="0.05" min="0" max="1">
+                            <small>Controla el núcleo de probabilidad de las palabras a considerar.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="max_tokens">Max Tokens</label>
+                            <input type="number" id="max_tokens" class="form-input" step="64" min="1">
+                            <small>Límite máximo de tokens para la respuesta generada.</small>
+                        </div>
+                    </div>
+                    <!-- Contenido Pestaña Mensajes -->
+                    <div id="messagesContent" class="main-tab-pane form-container">
+                        <div class="form-group">
+                            <label>Mensaje de Bienvenida</label>
+                            <textarea id="mensaje_bienvenida_es" class="form-textarea" rows="3" placeholder="Versión en español..."></textarea>
+                            <textarea id="mensaje_bienvenida_en" class="form-textarea" rows="3" placeholder="Versión en inglés..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Mensaje de Retorno</label>
+                            <textarea id="mensaje_retorno_es" class="form-textarea" rows="3" placeholder="Versión en español..."></textarea>
+                            <textarea id="mensaje_retorno_en" class="form-textarea" rows="3" placeholder="Versión en inglés..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Mensaje de Despedida</label>
+                            <textarea id="mensaje_despedida_es" class="form-textarea" rows="3" placeholder="Versión en español..."></textarea>
+                            <textarea id="mensaje_despedida_en" class="form-textarea" rows="3" placeholder="Versión en inglés..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Mensaje de Confirmación de Handoff</label>
+                            <textarea id="mensaje_handoff_confirmacion_es" class="form-textarea" rows="3" placeholder="Versión en español..."></textarea>
+                            <textarea id="mensaje_handoff_confirmacion_en" class="form-textarea" rows="3" placeholder="Versión en inglés..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Mensaje de Tarea Finalizada</label>
+                            <textarea id="mensaje_final_tarea_es" class="form-textarea" rows="3" placeholder="Versión en español..."></textarea>
+                            <textarea id="mensaje_final_tarea_en" class="form-textarea" rows="3" placeholder="Versión en inglés..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel Inspector (Derecha) -->
+            <aside class="inspector-panel">
+                <div class="inspector-section" id="agentInfo">
+                    <h3>ℹ️ Info del Agente</h3>
+                    <p class="empty-state">Selecciona un agente.</p>
+                </div>
+                <div class="inspector-section" id="recursosContent">
+                    <h3>🛠️ Recursos</h3>
+                    <p class="empty-state">Selecciona un agente.</p>
+                </div>
+                <div class="inspector-section" id="handoffsContent">
+                    <h3>🤝 Handoffs</h3>
+                    <p class="empty-state">Selecciona un agente.</p>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modales -->
+    <div id="helpModalOverlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="helpModalClose" class="modal-close-btn">×</button>
+            <div id="helpModalText" class="modal-text-content">
+                <h1>Guía de Creación de Prompts (Arquitectura v2)</h1>
+
+                <section class="help-section">
+                    <h2>Filosofía: El Prompt Conversa, el Código Ejecuta</h2>
+                    <p>En la nueva arquitectura, la responsabilidad del LLM es más simple y potente. Tu prompt ya no necesita describir flujos de control complejos. En su lugar, debe guiar al LLM para que haga dos cosas:</p>
+                    <ol>
+                        <li>Mantener una conversación fluida y natural con el usuario.</li>
+                        <li>Declarar una <strong>intención</strong> clara en formato JSON cuando necesite realizar una acción.</li>
+                    </ol>
+                    <p>El backend se encarga de interpretar esa intención y ejecutar la lógica de negocio correspondiente de forma segura y predecible.</p>
+                </section>
+
+                <section class="help-section">
+                    <h2>Estructura de Salida JSON Obligatoria</h2>
+                    <p>Toda respuesta del LLM debe ser un JSON con la siguiente estructura:</p>
+                    <pre><code>{
+    "say": "Mensaje para mostrar al usuario. Puede ser null si la acción es silenciosa.",
+    "action": { ... } // Objeto de acción o null si solo se habla
+}</code></pre>
+                </section>
+
+                <section class="help-section">
+                    <h2>Catálogo de Intenciones (`action`)</h2>
+                    <p>El objeto <code>action</code> le dice al sistema qué hacer. Estas son las intenciones disponibles:</p>
+                    
+                    <div class="help-subsection">
+                        <h3>1. Llamar a una Herramienta (Tool)</h3>
+                        <p>Para ejecutar una API o un formulario.</p>
+                        <pre><code>"action": {
+    "type": "call_tool",
+    "tool_name": "nombre_de_la_herramienta",
+    "args": { "param1": "valor1", ... }
+}</code></pre>
+                        <p><strong>Guía:</strong> Puedes ver las herramientas disponibles para el agente actual en la pestaña <strong>🛠️ Recursos</strong>.</p>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>2. Derivar a otro Agente (Handoff)</h3>
+                        <p>Para pasar la conversación a otro agente especialista.</p>
+                        <pre><code>"action": {
+    "type": "handoff",
+    "target_agent": "nombre_del_agente_destino"
+}</code></pre>
+                        <p><strong>Guía:</strong> Puedes ver los handoffs configurados en la pestaña <strong>🤝 Handoffs</strong>.</p>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>3. Finalizar Turno (¡Clave para Especialistas!)</h3>
+                        <p>Indica que un agente especialista ha completado su tarea y debe devolver el control al agente principal.</p>
+                        <pre><code>"action": { "type": "finish_turn" }</code></pre>
+                        <p><strong>Importante:</strong> Todo agente que no sea el principal (general/INFO) debe usar esta intención para finalizar su intervención.</p>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>4. Guardar en Sesión</h3>
+                        <p>Para almacenar o actualizar variables en el estado de la conversación.</p>
+                        <pre><code>"action": {
+    "type": "set_state",
+    "payload": { "mi_variable": "valor", "otra_variable": 123 }
+}</code></pre>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>5. Finalizar Conversación</h3>
+                        <p>Para terminar el diálogo activamente.</p>
+                        <pre><code>"action": { "type": "end_conversation" }</code></pre>
+                    </div>
+                </section>
+
+                <section class="help-section">
+                    <h2>Referencias y Variables</h2>
+                    
+                    <div class="help-subsection">
+                        <h3>Uso de Mensajes Predefinidos</h3>
+                        <p>No se referencian con código. El prompt debe instruir al LLM para que los use de forma semántica. El sistema se encarga de inyectar el texto correcto.</p>
+                        <p><strong>Ejemplo de instrucción en el prompt:</strong> <em>"Saluda al usuario con el mensaje de bienvenida y luego pregunta qué necesita."</em></p>
+                        <p><strong>Guía:</strong> Puedes ver y editar todos los mensajes en la pestaña <strong>💬 Mensajes</strong>.</p>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>Uso de Variables de Sesión</h3>
+                        <p>Puedes inyectar variables guardadas en la sesión directamente en tus respuestas de texto.</p>
+                        <p><strong>Sintaxis:</strong> Usa <code>${nombre_variable}</code> dentro del string del campo <code>say</code>.</p>
+                        <pre><code>{
+    "say": "¡Hola ${nombre_usuario}! Bienvenido de nuevo.",
+    "action": null
+}</code></pre>
+                        <p><strong>Nota:</strong> Las variables se guardan con la intención <code>set_state</code>.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+    <div id="assistantModalOverlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="assistantModalClose" class="modal-close-btn">×</button>
+            <div id="assistantModalText" class="modal-text-content">
+                <div class="assistant-container">
+                    <div class="suggestion-input-section">
+                        <label for="userSuggestion">¿Qué quieres mejorar o añadir?</label>
+                        <div class="suggestion-input-wrapper">
+                            <textarea id="userSuggestion" placeholder="Ej: 'hazlo más amigable', 'añade un paso para verificar el email'..."></textarea>
+                            <button id="micBtn" class="mic-btn" title="Grabar instrucción por voz">🎤</button>
+                        </div>
+                        <button id="generateSuggestionBtn" class="btn btn-primary">🚀 Generar Sugerencia</button>
+                    </div>
+                    <div class="suggestion-output-section">
+                        <div class="suggestion-half">
+                            <label>📝 Notas y Sugerencias</label>
+                            <div id="suggestionNotes" class="suggestion-output-display"><div class="loader"></div><p class="empty-state">Aquí aparecerán las notas de la IA...</p></div>
+                        </div>
+                        <div class="suggestion-half">
+                            <label>🚀 Prompt Mejorado</label>
+                            <div id="suggestionExample" class="suggestion-output-display"><div class="loader"></div><p class="empty-state">Aquí aparecerá el prompt mejorado...</p></div>
+                            <div class="suggestion-actions">
+                                <button id="applySuggestionBtn" class="btn btn-success" disabled>✅ Aplicar al Editor</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="validationModalOverlay" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="validationModalClose" class="modal-close-btn">×</button>
+            <div id="validationModalText" class="modal-text-content">
+                <div class="validation-controls">
+                    <button id="runValidationBtn" class="btn btn-primary">🧪 Ejecutar Validación</button>
+                    <span id="validationStatus" class="save-status"></span>
+                </div>
+                <div id="validationReportContainer" class="validation-report-container">
+                    <div class="empty-state">Haz clic en 'Ejecutar Validación' para generar un nuevo informe.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EasyMDE JS -->
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="app.js"></script>
+</body>
+</html>

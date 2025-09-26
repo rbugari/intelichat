@@ -1,19 +1,34 @@
 {
-  "name": "karghochat",
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.1",
+    "axios": "^1.11.0",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "mysql2": "^3.6.0",
+    "openai": "^5.19.1",
+    "react-hook-form": "^7.62.0",
+    "zod": "^3.25.76"
+  },
+  "name": "intelichat",
   "version": "1.0.0",
-  "description": "",
-  "main": "kargho_cli.js",
+  "description": "> Sistema de chatbot conversacional multi-agente completamente funcional y validado",
+  "main": "check_config.js",
+  "directories": {
+    "doc": "docs"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node kargho_cli.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rbugari/InteliChat.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
-    "dotenv": "^17.2.1",
-    "groq-sdk": "^0.30.0",
-    "openai": "^4.47.1"
-  }
+  "bugs": {
+    "url": "https://github.com/rbugari/InteliChat/issues"
+  },
+  "homepage": "https://github.com/rbugari/InteliChat#readme"
 }

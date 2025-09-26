@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chatbot Window – Vanilla JS</title>
+  <style>
+    :root{
+      --bg:#f7f7f8;
+      --panel:#ffffff;
+      --text:#111;
+      --muted:#6b7280;
+      --accent:#111;
+      --border:#e5e7eb;
+      --radius:16px;
+      --shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+      --green:#22c55e;
+      --red:#ef4444;
+      --yellow: #f59e0b;
+      --bubble-user:#e8f0ff;
+      --bubble-user-border:#dbe7ff;
+    }
+    body.dark{
+      --bg:#0b0f19;
+      --panel:#0f1629;
+      --text:#e5e7eb;
+      --muted:#9aa4b2;
+      --accent:#3b82f6;
+      --border:#1f2937;
+      --bubble-user:#1f2a44;
+      --bubble-user-border:#2b3b56;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;transition:background .3s,color .3s}
+    .app{height:100vh;display:grid;grid-template-rows:auto 1fr auto}
+    .topbar{position: fixed; top: 0; left: 0; right: 0; z-index: 10; display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:var(--panel);border-bottom:1px solid var(--border);transition:background .3s}
+    .title{font-weight:700}
+    .subtitle{font-size:.85rem;color:var(--muted);margin-top:.25rem;}
+    .grow{margin-left:auto}
+    .btn, .icon-btn{border:1px solid var(--border);border-radius:12px;padding:.5rem .75rem;background:var(--panel);color:var(--text);transition:background .3s,color .3s; cursor: pointer;}
+    .icon-btn{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+    .status-indicator{width:10px;height:10px;border-radius:50%;display:inline-block;margin-left:.5rem;}
+    .status-online{background:var(--green)}
+    .status-offline{background:var(--red)}
+    .status-connecting{background:var(--yellow)}
+
+    .messages{overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem;flex:1;padding-bottom: 70px;}
+    .row{display:flex;gap:.5rem;align-items:flex-end}
+    .row.user{justify-content:flex-end}
+    .avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--panel);border:1px solid var(--border);color:var(--text);flex-shrink:0;}
+    .bubble{max-width:75%;padding:.6rem .85rem;border-radius:18px;box-shadow:var(--shadow);transition:background .3s,color .3s}
+    .bubble.assistant{background:var(--panel);border:1px solid var(--border)}
+    .bubble.user{background:var(--bubble-user);border:1px solid var(--bubble-user-border)}
+    .bubble .name{font-size:.8rem;color:var(--muted);margin-bottom:.25rem;font-weight:500;}
+    .bubble .text{white-space:pre-wrap; word-wrap: break-word;}
+    .bubble .time{font-size:.75rem;color:var(--muted);}
+    .bubble-footer{display:flex;justify-content:flex-end;align-items:center;gap:.5rem;margin-top:.35rem;}
+    .tts-play-btn{background:transparent;border:0;padding:0;margin:0;cursor:pointer;color:var(--muted);opacity:0.6;font-size:1rem;transition:opacity .2s;}
+    .tts-play-btn:hover{opacity:1;}
+    body.tts-enabled .bubble.assistant .tts-play-btn{display:none;}
+    .bubble.system{background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; text-align: center; max-width: 100%; font-size: 0.8rem; padding: 0.5rem; margin: .5rem 0;}
+    body.dark .bubble.system{background: #2d2313; border-color: #5e4a2a; color: #fcd34d;}
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 99;
+      display: none; /* Hidden by default */
+    }
+    .modal-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      z-index: 100;
+      display: none; /* Hidden by default */
+      flex-direction: column;
+      max-width: 90%;
+      max-height: 90%;
+      overflow: hidden;
+    }
+    .modal-close-btn {
+      align-self: flex-end;
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      padding: 0.5rem;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .modal-content {
+      padding: 1rem;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+    /* Class to show modal */
+    body.modal-active .modal-overlay,
+    body.modal-active .modal-container {
+      display: flex;
+    }
+
+    .composer{display:flex;gap:.5rem;padding:.5rem;border-top:1px solid var(--border);background:var(--panel);transition:background .3s;align-items:center;position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; height: 60px; box-sizing: border-box;}
+    .input{flex:1;border:1px solid var(--border);border-radius:999px;padding:.5rem .9rem;background:var(--panel);color:var(--text);transition:background .3s,color .3s}
+    .send, .mic-btn{border:1px solid var(--border);border-radius:999px;padding:.5rem 1rem;background:var(--accent);color:#fff;cursor:pointer;transition:background .3s}
+    .mic-btn.is-recording { background: var(--red); }
+    
+    .theme-switch{display:inline-flex;align-items:center;gap:.4rem}
+    .theme-switch input{display:none}
+    .theme-switch .track{position:relative;width:50px;height:26px;border-radius:999px;background:#e5e7eb;border:1px solid var(--border);cursor:pointer}
+    .theme-switch .thumb{position:absolute;top:1px;left:1px;width:24px;height:24px;border-radius:999px;background:var(--panel);color:var(--text);display:grid;place-items:center;transition:.2s transform, background .3s,color .3s;box-shadow:var(--shadow);font-size:.9rem}
+    body.dark .theme-switch .track{background: #334155;}
+    .theme-switch input:checked + .track{background:#0ea5e9}
+    .theme-switch input:checked + .track .thumb{transform:translateX(24px)}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="title" id="chatTitle">Chatbot</div>
+      <div class="subtitle" id="chatSubtitle"></div>
+      <div class="grow"></div>
+      <button class="icon-btn" id="btnClear" title="Limpiar historial" type="button">🗑️</button>
+      <button class="icon-btn" id="btnTts" title="Activar/Desactivar Voz" type="button">🔇</button>
+      <span class="status-indicator status-connecting" id="statusDot" title="Conectando..."></span>
+      <div class="theme-switch" title="Modo oscuro / claro">
+        <input type="checkbox" id="themeToggle"/>
+        <div class="track" id="themeTrack"><div class="thumb">☀️</div></div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="messages" id="messages">
+        <!-- Los mensajes se insertarán aquí dinámicamente -->
+      </div>
+    </div>
+    <div class="composer">
+      <input class="input" id="input" placeholder="Escribe un mensaje..." disabled/>
+      <button class="mic-btn" id="micButton" type="button" title="Grabar mensaje" disabled>🎤</button>
+      <button class="send" id="send" type="button" disabled>Enviar</button>
+    </div>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay"></div>
+  <div id="modalContainer" class="modal-container">
+    <button id="modalCloseBtn" class="modal-close-btn">✖</button>
+    <div id="modalContent" class="modal-content"></div>
+  </div>
+
+  <script>
+    // Version: 1.3.0 - Dynamic STT Provider from Backend
+    // ========= Utilidades =========
+    const $ = (sel) => document.querySelector(sel);
+
+    // ========= Configuración =========
+    const urlParams = new URLSearchParams(window.location.search);
+    const config = {
+      cliente_id: parseInt(urlParams.get('cliente_id')) || 1,
+      chatbot_id: parseInt(urlParams.get('chatbot_id')) || 1,
+      backendUrl: 'http://localhost:3000',
+      sttProvider: 'backend' // Valor inicial, se actualizará desde el backend
+    };
+
+    // ========= Estado del Chat =========
+    let sessionId = null;
+    let isTyping = false;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let recognition = null;
+    let audioChunks = [];
+    let ttsEnabled = false;
+    let voices = [];
+
+    // ========= Lógica de TTS (Text-to-Speech) =========
+    const loadVoices = () => {
+      voices = speechSynthesis.getVoices();
+      if (voices.length === 0 && speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = () => {
+          voices = speechSynthesis.getVoices();
+          console.log("[TTS] Voces cargadas:", voices.length);
+        };
+      }
+    };
+
+    const speak = (text) => {
+      if (!text || typeof text !== 'string') return;
+      speechSynthesis.cancel(); // Cancelar cualquier locución anterior
+      const utterance = new SpeechSynthesisUtterance(text);
+      const spanishVoice = voices.find(voice => voice.lang.startsWith('es'));
+      if (spanishVoice) {
+        utterance.voice = spanishVoice;
+      } else {
+        console.warn("[TTS] No se encontró una voz en español.");
+      }
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      speechSynthesis.speak(utterance);
+    };
+
+    // ========= Elementos del DOM =========
+    const app = $(".app");
+    const chatTitle = $("#chatTitle");
+    const chatSubtitle = $("#chatSubtitle");
+    const statusDot = $("#statusDot");
+    const messagesContainer = $("#messages");
+    const input = $("#input");
+    const sendButton = $("#send");
+    const micButton = $("#micButton");
+    const btnClear = $("#btnClear");
+    const btnTts = $("#btnTts");
+    const themeToggle = $("#themeToggle");
+    const themeTrack = $("#themeTrack");
+
+    // ========= Lógica de la API =========
+    const api = {
+      getUiConfig: async () => {
+        try {
+          const response = await fetch(`${config.backendUrl}/api/config/ui`);
+          if (!response.ok) {
+            console.warn('Could not fetch UI config. Falling back to default.');
+            return { sttDefaultProvider: 'backend' };
+          }
+          return response.json();
+        } catch (error) {
+          console.error('Error fetching UI config:', error);
+          return { sttDefaultProvider: 'backend' };
+        }
+      },
+      getAgentInfo: async () => {
+        const response = await fetch(`${config.backendUrl}/api/chat/agent-info?cliente_id=${config.cliente_id}&chatbot_id=${config.chatbot_id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+        return response.json();
+      },
+      sendMessage: async (message) => {
+        const url = `${config.backendUrl}/api/chat`;
+        const payload = {
+          cliente_id: config.cliente_id,
+          chatbot_id: config.chatbot_id,
+          initial_message: message,
+        };
+        if (sessionId) {
+          payload.sessionId = sessionId;
+        }
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new Error(`HTTP error! status: ${response.status} - ${errorBody}`);
+        }
+        return response.json();
+      },
+      transcribeAudio: async (audioBlob) => {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+
+        const url = `${config.backendUrl}/api/stt/transcribe`;
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.json();
+          throw new Error(errorBody.message || `HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      },
+      getFormSchema: async (formCodigo) => {
+        const url = `${config.backendUrl}/api/forms/${formCodigo}?cliente_id=${config.cliente_id}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Error al obtener el schema del formulario: ${response.statusText}`);
+        }
+        return response.json();
+      },
+      submitForm: async (formCodigo, formData) => {
+        const url = `${config.backendUrl}/api/forms/submit`;
+        const payload = {
+            form_codigo: formCodigo,
+            data: formData,
+            sessionId: sessionId,
+            cliente_id: config.cliente_id
+        };
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            throw new Error(`Error al enviar el formulario: ${response.statusText}`);
+        }
+        return response.json();
+      }
+    };
+
+    // ========= Lógica del Chat =========
+    const ui = {
+      addMessage: (sender, text, agentName = 'Bot', agentColor = null) => {
+        const now = new Date();
+        const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        const messageRow = document.createElement('div');
+        messageRow.className = `row ${sender}`;
+
+        const bubbleClass = sender === 'system' ? 'system' : sender;
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${bubbleClass}`;
+        
+        if (sender === 'user') {
+            bubble.innerHTML = (
+              `<div class="name">Tú</div>
+              <div class="text"></div>
+              <div class="bubble-footer"><span class="time">${time}</span></div>`
+            );
+            bubble.querySelector('.text').innerHTML = text; // Reverted to innerHTML
+        } else if (sender === 'assistant' || sender === 'bot') {
+            bubble.innerHTML = (
+              `<div class="name">${agentName}</div>
+              <div class="text"></div>
+              <div class="bubble-footer">
+                <button class="tts-play-btn" title="Leer en voz alta">🔈</button>
+                <span class="time">${time}</span>
+              </div>`
+            );
+            const textElement = bubble.querySelector('.text');
+            textElement.innerHTML = text; // Reverted to innerHTML
+            if (agentColor) {
+              textElement.style.color = agentColor;
+            }
+        } else { // system messages
+            bubble.innerHTML = text;
+        }
+
+        if(sender !== 'system'){
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = sender === 'user' ? '🧑' : '🤖';
+            if (sender === 'user') {
+              messageRow.append(bubble, avatar);
+            } else {
+              messageRow.append(avatar, bubble);
+            }
+        } else {
+            messageRow.append(bubble);
+            messageRow.style.justifyContent = 'center';
+        }
+
+        messagesContainer.appendChild(messageRow);
+        messageRow.scrollIntoView({ behavior: "auto", block: "end" });
+      },
+      setTyping: (isTyping) => {
+        if (isTyping) {
+            ui.addMessage('assistant', '<div class="typing-indicator">...</div>', 'Bot');
+        } else {
+            const indicator = messagesContainer.querySelector('.typing-indicator');
+            if(indicator) indicator.closest('.row.assistant').remove();
+        }
+        input.disabled = isTyping;
+        sendButton.disabled = isTyping;
+        micButton.disabled = isTyping;
+      },
+      setStatus: (status, title) => {
+        statusDot.className = 'status-indicator';
+        statusDot.classList.add(`status-${status}`);
+        statusDot.title = title;
+      },
+      clearMessages: () => {
+        messagesContainer.innerHTML = '';
+        speechSynthesis.cancel(); // Detener voz al limpiar
+        document.body.classList.remove('modal-active'); // Hide modal
+      },
+      renderForm: async (formCodigo, args) => {
+        try {
+            const formSchema = await api.getFormSchema(formCodigo);
+            const formContainer = document.createElement('div');
+            formContainer.className = 'form-container';
+
+            const title = document.createElement('h3');
+            title.textContent = formSchema.titulo;
+            formContainer.appendChild(title);
+
+            if (formSchema.descripcion) {
+                const description = document.createElement('p');
+                description.textContent = formSchema.descripcion;
+                formContainer.appendChild(description);
+            }
+
+            formSchema.schema_json.components.forEach(field => {
+                const fieldContainer = document.createElement('div');
+                fieldContainer.className = 'form-field';
+
+                const label = document.createElement('label');
+                label.textContent = field.label;
+                fieldContainer.appendChild(label);
+
+                let input;
+                switch (field.type) {
+                    case 'textarea':
+                        input = document.createElement('textarea');
+                        break;
+                    case 'select':
+                        input = document.createElement('select');
+                        field.options.forEach(option => {
+                            const opt = document.createElement('option');
+                            opt.value = option.value;
+                            opt.textContent = option.label;
+                            input.appendChild(opt);
+                        });
+                        break;
+                    default:
+                        input = document.createElement('input');
+                        input.type = field.type;
+                }
+                input.name = field.key;
+                if (field.defaultValue) {
+                    input.value = field.defaultValue;
+                }
+                fieldContainer.appendChild(input);
+                formContainer.appendChild(fieldContainer);
+            });
+
+            const submitButton = document.createElement('button');
+            submitButton.textContent = 'Enviar';
+            submitButton.addEventListener('click', () => handleFormSubmit(formCodigo, formContainer));
+            formContainer.appendChild(submitButton);
+
+            // --- NEW: Apply custom CSS ---
+            if (formSchema.css_text) {
+                const styleTag = document.createElement('style');
+                styleTag.textContent = formSchema.css_text;
+                document.head.appendChild(styleTag); // Append to <head>
+            }
+            // --- END NEW ---
+
+            // --- MODAL LOGIC ---
+            const modalContent = $('#modalContent');
+            modalContent.innerHTML = ''; // Clear previous content
+            modalContent.appendChild(formContainer);
+            document.body.classList.add('modal-active'); // Show modal
+            // --- END MODAL LOGIC ---
+
+        } catch (error) {
+            console.error('Error al renderizar el formulario:', error);
+            ui.addMessage('system', `Error al cargar el formulario: ${error.message}`);
+        }
+      }
+    };
+
+    const handleSendMessage = async (messageTextParam) => {
+      const messageText = messageTextParam !== undefined ? messageTextParam : input.value.trim();
+      if (!messageText && messageTextParam === undefined || isTyping) return;
+
+      ui.addMessage('user', messageText);
+      input.value = '';
+      input.focus();
+      ui.setTyping(true);
+
+      try {
+        const response = await api.sendMessage(messageText);
+        ui.setTyping(false);
+
+        if (response.agent && response.agent.name) {
+            const currentAgentName = response.agent.name || 'Asistente';
+            const currentLLMProvider = response.llm?.provider || 'N/A';
+            const currentLLMModel = response.llm?.model || 'N/A';
+            chatSubtitle.textContent = `Agente: ${currentAgentName} | LLM: ${currentLLMProvider} (${currentLLMModel})`;
+        }
+
+        if (response.sessionId) {
+          sessionId = response.sessionId;
+        }
+
+        // Procesar los mensajes de texto
+        if (Array.isArray(response.response)) {
+            for (const msg of response.response) {
+                if (msg.text) {
+                    ui.addMessage('assistant', msg.text, msg.agent?.name || 'Bot', msg.agent?.color);
+                    if (ttsEnabled) speak(msg.text);
+                }
+            }
+        }
+
+        // --- INICIO: NUEVA LÓGICA PARA HANDOFF SILENCIOSO ---
+        // Si la respuesta está vacía, es un handoff silencioso.
+        // Enviamos un mensaje vacío para obtener la respuesta del nuevo agente.
+        if (Array.isArray(response.response) && response.response.length === 0 && !response.action) {
+            console.log("[Auto-Handoff] Silent handoff detected. Triggering next agent's turn.");
+            await handleSendMessage(''); // Llamada recursiva para el siguiente turno
+            return; // Salir para evitar que se procese el resto de la función
+        }
+        // --- FIN: NUEVA LÓGICA ---
+
+        // Procesar la acción de formulario si existe
+        if (response.action && response.action.type === 'call_form') {
+            ui.renderForm(response.action.form_codigo, response.action.args);
+        }
+
+        input.focus();
+      } catch (error) {
+        ui.setTyping(false);
+        input.focus();
+        console.error('Error al enviar mensaje:', error);
+        ui.addMessage('system', `Error: No se pudo conectar con el servidor.\n${error.message}`);
+        ui.setStatus('offline', 'Error de conexión');
+      } 
+    };
+
+    // --- LÓGICA DE GRABACIÓN --- 
+
+    const handleMicClick = () => {
+      if (config.sttProvider === 'web') {
+        handleWebSTT();
+      } else {
+        handleBackendSTT();
+      }
+    };
+
+    const handleBackendSTT = async () => {
+      if (isRecording) {
+        mediaRecorder.stop();
+      } else {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          audioChunks = [];
+
+          mediaRecorder.addEventListener('dataavailable', event => {
+            audioChunks.push(event.data);
+          });
+
+          mediaRecorder.addEventListener('stop', async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            stream.getTracks().forEach(track => track.stop());
+            isRecording = false;
+            micButton.classList.remove('is-recording');
+            micButton.textContent = '🎤';
+            micButton.title = 'Grabar mensaje';
+            input.placeholder = 'Transcribiendo...';
+            micButton.disabled = true;
+
+            try {
+              const response = await api.transcribeAudio(audioBlob);
+              input.value = response.data.text;
+              input.focus();
+            } catch (error) {
+              console.error('Error de transcripción:', error);
+              ui.addMessage('system', `Error de transcripción: ${error.message}`);
+            } finally {
+              input.placeholder = 'Escribe un mensaje...';
+              micButton.disabled = false;
+              input.disabled = false;
+            }
+          });
+
+          mediaRecorder.start();
+          isRecording = true;
+          micButton.classList.add('is-recording');
+          micButton.textContent = '🛑';
+          micButton.title = 'Detener grabación';
+          input.value = '';
+          input.placeholder = 'Grabando...';
+          input.disabled = true;
+
+        } catch (error) {
+          console.error('Error al acceder al micrófono:', error);
+          ui.addMessage('system', 'No se pudo acceder al micrófono. Asegúrate de dar los permisos necesarios.');
+        }
+      }
+    };
+
+    const handleWebSTT = () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        ui.addMessage('system', 'Tu navegador no soporta la API de voz. Prueba en Chrome o Edge.');
+        return;
+      }
+
+      if (isRecording) {
+        recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isRecording = true;
+        micButton.classList.add('is-recording');
+        micButton.textContent = '🛑';
+        micButton.title = 'Detener grabación';
+        input.value = '';
+        input.placeholder = 'Escuchando...';
+        input.disabled = true;
+      };
+
+      recognition.onend = () => {
+        isRecording = false;
+        micButton.classList.remove('is-recording');
+        micButton.textContent = '🎤';
+        micButton.title = 'Grabar mensaje';
+        input.placeholder = 'Escribe un mensaje...';
+        input.disabled = false;
+        input.focus();
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        input.value = transcript;
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Error de SpeechRecognition:', event.error);
+        ui.addMessage('system', `Error de reconocimiento: ${event.error}`);
+      };
+
+      recognition.start();
+    };
+
+    const handleFormSubmit = async (formCodigo, formContainer) => {
+        const formData = {};
+        const inputs = formContainer.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            formData[input.name] = input.value;
+        });
+
+        try {
+            await api.submitForm(formCodigo, formData);
+            document.body.classList.remove('modal-active'); // Hide modal
+            handleSendMessage(`Formulario ${formCodigo} completado.`);
+        } catch (error) {
+            console.error('Error al enviar el formulario:', error);
+            ui.addMessage('system', `Error al enviar el formulario: ${error.message}`);
+        }
+    };
+
+    const initializeChat = async () => {
+      ui.clearMessages();
+      sessionId = null;
+      try {
+        // Cargar configuración de UI dinámicamente
+        const uiConfig = await api.getUiConfig();
+        config.sttProvider = uiConfig.sttDefaultProvider;
+        console.log(`[INFO] STT Provider inicializado como: ${config.sttProvider}`);
+
+        ui.setStatus('connecting', 'Conectando...');
+        const agentInfo = await api.getAgentInfo();
+        console.log('DEBUG: agentInfo received:', agentInfo);
+        
+        const agentNameForDisplay = agentInfo.agent.nombre || 'Asistente';
+        chatTitle.textContent = `${agentInfo.agent.chatbot} - ${agentInfo.agent.cliente_nombre}`;
+        chatSubtitle.textContent = `Agente: ${agentNameForDisplay} | LLM: ${agentInfo.llm.provider} (${agentInfo.llm.model})`;
+        
+        ui.setStatus('online', 'Conectado');
+        input.disabled = false;
+        sendButton.disabled = false;
+        micButton.disabled = false;
+        input.focus();
+        await handleSendMessage('');
+      } catch (error) {
+        console.error('Error al inicializar el chat:', error);
+        chatTitle.textContent = 'Error de Conexión';
+        ui.addMessage('system', `No se pudo inicializar el chat. Verifica que el backend esté corriendo.\n${error.message}`);
+        ui.setStatus('offline', 'Desconectado');
+      }
+    };
+
+    // ========= Event Listeners =========
+    const modalCloseBtn = $('#modalCloseBtn'); // Get reference to close button
+    modalCloseBtn.addEventListener('click', () => {
+      document.body.classList.remove('modal-active'); // Hide modal
+      // --- NEW: Notify backend about form dismissal ---
+      handleSendMessage("TOOL_ERROR: Form 'seleccion_ciudad' dismissed.");
+      // --- END NEW ---
+    });
+
+    sendButton.addEventListener('click', () => handleSendMessage());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    });
+
+    micButton.addEventListener('click', handleMicClick);
+    btnClear.addEventListener('click', initializeChat);
+
+    btnTts.addEventListener('click', () => {
+      ttsEnabled = !ttsEnabled;
+      btnTts.textContent = ttsEnabled ? '🔊' : '🔇';
+      document.body.classList.toggle('tts-enabled', ttsEnabled);
+      if (!ttsEnabled) {
+        speechSynthesis.cancel(); // Si se apaga, detener cualquier voz
+      }
+    });
+
+    messagesContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tts-play-btn')) {
+        const text = e.target.closest('.bubble').querySelector('.text').textContent;
+        speak(text);
+      }
+    });
+
+    const theme = {
+        setDark: (dark) => {
+            document.body.classList.toggle('dark', !!dark);
+            $(".theme-switch .thumb").textContent = dark ? '☀️' : '🌙';
+            localStorage.setItem('darkTheme', dark ? '1' : '0');
+        },
+        init: () => {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const savedTheme = localStorage.getItem('darkTheme');
+            const useDark = savedTheme ? savedTheme === '1' : prefersDark;
+            themeToggle.checked = useDark;
+            theme.setDark(useDark);
+        }
+    };
+
+    themeToggle.addEventListener('change', (e)=> theme.setDark(e.target.checked));
+    themeTrack.addEventListener('click', ()=> themeToggle.click());
+
+    // ========= Iniciar Chat =========
+    document.addEventListener('DOMContentLoaded', () => {
+        theme.init();
+        loadVoices(); // Cargar las voces para TTS
+        initializeChat();
+    });
+  </script>
+</body>
+</html>
