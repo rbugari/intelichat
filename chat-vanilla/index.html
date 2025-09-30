@@ -120,6 +120,15 @@
     body.dark .theme-switch .track{background: #334155;}
     .theme-switch input:checked + .track{background:#0ea5e9}
     .theme-switch input:checked + .track .thumb{transform:translateX(24px)}
+    
+    /* Language Toggle Styles */
+    .lang-toggle{display:inline-flex;align-items:center;gap:.4rem}
+    .lang-toggle input{display:none}
+    .lang-toggle .track{position:relative;width:60px;height:26px;border-radius:999px;background:#e5e7eb;border:1px solid var(--border);cursor:pointer}
+    .lang-toggle .thumb{position:absolute;top:1px;left:1px;width:28px;height:24px;border-radius:999px;background:var(--panel);color:var(--text);display:grid;place-items:center;transition:.2s transform, background .3s,color .3s;box-shadow:var(--shadow);font-size:.7rem;font-weight:600}
+    body.dark .lang-toggle .track{background: #334155;}
+    .lang-toggle input:checked + .track{background:#22c55e}
+    .lang-toggle input:checked + .track .thumb{transform:translateX(32px)}
   </style>
 </head>
 <body>
@@ -131,6 +140,10 @@
       <button class="icon-btn" id="btnClear" title="Limpiar historial" type="button">🗑️</button>
       <button class="icon-btn" id="btnTts" title="Activar/Desactivar Voz" type="button">🔇</button>
       <span class="status-indicator status-connecting" id="statusDot" title="Conectando..."></span>
+      <div class="lang-toggle" title="Cambiar idioma reiniciará la conversación con el nuevo prompt">
+        <input type="checkbox" id="langToggle"/>
+        <div class="track" id="langTrack"><div class="thumb">ESP</div></div>
+      </div>
       <div class="theme-switch" title="Modo oscuro / claro">
         <input type="checkbox" id="themeToggle"/>
         <div class="track" id="themeTrack"><div class="thumb">☀️</div></div>
@@ -177,6 +190,97 @@
     let audioChunks = [];
     let ttsEnabled = false;
     let voices = [];
+    let currentLanguage = 'es'; // Estado del idioma actual
+
+    // ========= Traducciones de la UI =========
+    const translations = {
+      es: {
+        // Botones
+        clearHistory: 'Limpiar historial',
+        toggleVoice: 'Activar/Desactivar Voz',
+        recordMessage: 'Grabar mensaje',
+        sendButton: 'Enviar',
+        // Estados
+        connecting: 'Conectando...',
+        connected: 'Conectado',
+        disconnected: 'Desconectado',
+        // Placeholders y mensajes
+        inputPlaceholder: 'Escribe un mensaje...',
+        // Tooltips
+        langToggleTooltip: 'Cambiar idioma reiniciará la conversación con el nuevo prompt',
+        themeToggleTooltip: 'Modo oscuro / claro',
+        // Mensajes del sistema
+        languageChanging: 'Cambiando idioma a Español...',
+        languageChanged: 'Idioma cambiado a Español. Reiniciando conversación...',
+        languageError: 'Error al cambiar idioma',
+        connectionError: 'No se pudo inicializar el chat. Verifica que el backend esté corriendo.',
+        connectionErrorTitle: 'Error de Conexión'
+      },
+      en: {
+        // Botones
+        clearHistory: 'Clear history',
+        toggleVoice: 'Enable/Disable Voice',
+        recordMessage: 'Record message',
+        sendButton: 'Send',
+        // Estados
+        connecting: 'Connecting...',
+        connected: 'Connected',
+        disconnected: 'Disconnected',
+        // Placeholders y mensajes
+        inputPlaceholder: 'Type a message...',
+        // Tooltips
+        langToggleTooltip: 'Changing language will restart the conversation with the new prompt',
+        themeToggleTooltip: 'Dark / light mode',
+        // Mensajes del sistema
+        languageChanging: 'Changing language to English...',
+        languageChanged: 'Language changed to English. Restarting conversation...',
+        languageError: 'Error changing language',
+        connectionError: 'Could not initialize chat. Please verify that the backend is running.',
+        connectionErrorTitle: 'Connection Error'
+      }
+    };
+
+    // ========= Función para detectar idioma del texto =========
+    const detectLanguageFromText = (text) => {
+      // Palabras clave en español
+      const spanishKeywords = ['hola', 'ayudarte', 'puedo', 'información', 'cómo', 'qué', 'soy', 'agente', 'español'];
+      // Palabras clave en inglés
+      const englishKeywords = ['hello', 'help', 'can', 'information', 'how', 'what', 'am', 'agent', 'english'];
+      
+      const lowerText = text.toLowerCase();
+      let spanishScore = 0;
+      let englishScore = 0;
+      
+      spanishKeywords.forEach(word => {
+        if (lowerText.includes(word)) spanishScore++;
+      });
+      
+      englishKeywords.forEach(word => {
+        if (lowerText.includes(word)) englishScore++;
+      });
+      
+      return englishScore > spanishScore ? 'en' : 'es';
+    };
+
+    // ========= Función para actualizar idioma de la UI =========
+    const updateUILanguage = (lang = currentLanguage) => {
+      const t = translations[lang] || translations['es'];
+      
+      // Actualizar títulos de botones
+      btnClear.title = t.clearHistory;
+      btnTts.title = t.toggleVoice;
+      micButton.title = t.recordMessage;
+      sendButton.textContent = t.sendButton;
+      
+      // Actualizar placeholder del input
+      input.placeholder = t.inputPlaceholder;
+      
+      // Actualizar tooltips de toggles
+      $('.lang-toggle').title = t.langToggleTooltip;
+      $('.theme-switch').title = t.themeToggleTooltip;
+      
+      console.log(`[UI] Idioma de interfaz actualizado a: ${lang}`);
+    };
 
     // ========= Lógica de TTS (Text-to-Speech) =========
     const loadVoices = () => {
@@ -217,6 +321,8 @@
     const btnTts = $("#btnTts");
     const themeToggle = $("#themeToggle");
     const themeTrack = $("#themeTrack");
+    const langToggle = $("#langToggle");
+    const langTrack = $("#langTrack");
 
     // ========= Lógica de la API =========
     const api = {
@@ -304,6 +410,23 @@
         });
         if (!response.ok) {
             throw new Error(`Error al enviar el formulario: ${response.statusText}`);
+        }
+        return response.json();
+      },
+      changeLanguage: async (language) => {
+        const url = `${config.backendUrl}/api/chat/change-language`;
+        const payload = {
+          cliente_id: config.cliente_id,
+          chatbot_id: config.chatbot_id,
+          language: language
+        };
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          throw new Error(`Error al cambiar idioma: ${response.statusText}`);
         }
         return response.json();
       }
@@ -660,7 +783,8 @@
         config.sttProvider = uiConfig.sttDefaultProvider;
         console.log(`[INFO] STT Provider inicializado como: ${config.sttProvider}`);
 
-        ui.setStatus('connecting', 'Conectando...');
+        const t = translations[currentLanguage] || translations['es'];
+        ui.setStatus('connecting', t.connecting);
         const agentInfo = await api.getAgentInfo();
         console.log('DEBUG: agentInfo received:', agentInfo);
         
@@ -668,17 +792,48 @@
         chatTitle.textContent = `${agentInfo.agent.chatbot} - ${agentInfo.agent.cliente_nombre}`;
         chatSubtitle.textContent = `Agente: ${agentNameForDisplay} | LLM: ${agentInfo.llm.provider} (${agentInfo.llm.model})`;
         
-        ui.setStatus('online', 'Conectado');
+        ui.setStatus('online', t.connected);
+        
+        // Actualizar UI con el idioma actual
+        updateUILanguage(currentLanguage);
         input.disabled = false;
         sendButton.disabled = false;
         micButton.disabled = false;
         input.focus();
-        await handleSendMessage('');
+        
+        // Enviar mensaje inicial y detectar idioma del agente
+        const initialResponse = await api.sendMessage('');
+        if (initialResponse.response && initialResponse.response.length > 0) {
+          // Detectar idioma basado en la respuesta del agente
+          const firstMessage = initialResponse.response[0];
+          if (firstMessage.text) {
+            // Detectar idioma simple basado en palabras clave
+            const detectedLang = detectLanguageFromText(firstMessage.text);
+            if (detectedLang !== currentLanguage) {
+              console.log(`[UI] Idioma detectado del agente: ${detectedLang}, actualizando UI`);
+              currentLanguage = detectedLang;
+              updateUILanguage(detectedLang);
+              langToggle.checked = detectedLang === 'en';
+              $(".lang-toggle .thumb").textContent = detectedLang === 'es' ? 'ESP' : 'ENG';
+              localStorage.setItem('chatLanguage', detectedLang);
+            }
+            
+            // Mostrar respuesta del agente
+            initialResponse.response.forEach(msg => {
+              if (msg.text) {
+                const agentName = msg.agent?.name || msg.agent?.nombre || agentNameForDisplay;
+                const agentColor = msg.agent?.color || null;
+                ui.addMessage('assistant', msg.text, agentName, agentColor);
+              }
+            });
+          }
+        }
       } catch (error) {
         console.error('Error al inicializar el chat:', error);
-        chatTitle.textContent = 'Error de Conexión';
-        ui.addMessage('system', `No se pudo inicializar el chat. Verifica que el backend esté corriendo.\n${error.message}`);
-        ui.setStatus('offline', 'Desconectado');
+        const t = translations[currentLanguage] || translations['es'];
+        chatTitle.textContent = t.connectionErrorTitle;
+        ui.addMessage('system', `${t.connectionError}\n${error.message}`);
+        ui.setStatus('offline', t.disconnected);
       }
     };
 
@@ -736,12 +891,91 @@
     themeToggle.addEventListener('change', (e)=> theme.setDark(e.target.checked));
     themeTrack.addEventListener('click', ()=> themeToggle.click());
 
-    // ========= Iniciar Chat =========
-    document.addEventListener('DOMContentLoaded', () => {
-        theme.init();
-        loadVoices(); // Cargar las voces para TTS
-        initializeChat();
-    });
+     // ========= Lógica del Toggle de Idioma =========
+     const language = {
+         setLanguage: async (lang) => {
+             try {
+                 // Mostrar indicador de carga
+                 ui.setTyping(true);
+                 const t = translations[lang] || translations['es'];
+                 ui.addMessage('system', `🔄 ${t.languageChanging}`);
+                 
+                 // Cambiar idioma en el backend
+                 const response = await api.changeLanguage(lang);
+                 
+                 if (response.status === 'success') {
+                     currentLanguage = lang;
+                     $(".lang-toggle .thumb").textContent = lang === 'es' ? 'ESP' : 'ENG';
+                     localStorage.setItem('chatLanguage', lang);
+                     
+                     // Actualizar UI con el nuevo idioma
+                     updateUILanguage(lang);
+                     
+                     // Mostrar mensaje de confirmación
+                     ui.addMessage('system', `✅ ${t.languageChanged}`);
+                     
+                     // Esperar un momento para que el usuario vea el mensaje
+                     await new Promise(resolve => setTimeout(resolve, 1000));
+                     
+                     // Re-ejecutar el agente automáticamente con mensaje de bienvenida
+                     const restartMessage = lang === 'es' ? 'Hola' : 'Hello';
+                     const agentResponse = await api.sendMessage(restartMessage);
+                     
+                     ui.setTyping(false);
+                     
+                     // Mostrar respuesta del agente en el nuevo idioma
+                     if (agentResponse.response && agentResponse.response.length > 0) {
+                         agentResponse.response.forEach(msg => {
+                             if (msg.text) {
+                                 const agentName = msg.agent?.name || msg.agent?.nombre || 'Asistente';
+                                 const agentColor = msg.agent?.color || null;
+                                 ui.addMessage('assistant', msg.text, agentName, agentColor);
+                             }
+                         });
+                     }
+                     
+                     // Actualizar información del agente en la UI
+                     if (agentResponse.agent && agentResponse.agent.name) {
+                         const currentAgentName = agentResponse.agent.name || 'Asistente';
+                         const currentLLMProvider = agentResponse.llm?.provider || 'N/A';
+                         const currentLLMModel = agentResponse.llm?.model || 'N/A';
+                         chatSubtitle.textContent = `Agente: ${currentAgentName} | LLM: ${currentLLMProvider} (${currentLLMModel})`;
+                     }
+                 } else {
+                     throw new Error(response.message || 'Error desconocido');
+                 }
+                 
+             } catch (error) {
+                 console.error('Error al cambiar idioma:', error);
+                 ui.setTyping(false);
+                 const tError = translations[currentLanguage] || translations['es'];
+                 ui.addMessage('system', `❌ ${tError.languageError}: ${error.message}`);
+                 // Revertir el toggle si hay error
+                 langToggle.checked = currentLanguage === 'en';
+                 $(".lang-toggle .thumb").textContent = currentLanguage === 'es' ? 'ESP' : 'ENG';
+             }
+         },
+         init: () => {
+             const savedLanguage = localStorage.getItem('chatLanguage') || 'es';
+             currentLanguage = savedLanguage;
+             langToggle.checked = savedLanguage === 'en';
+             $(".lang-toggle .thumb").textContent = savedLanguage === 'es' ? 'ESP' : 'ENG';
+         }
+     };
+
+     langToggle.addEventListener('change', (e) => {
+         const newLang = e.target.checked ? 'en' : 'es';
+         language.setLanguage(newLang);
+     });
+     langTrack.addEventListener('click', () => langToggle.click());
+
+     // ========= Iniciar Chat =========
+     document.addEventListener('DOMContentLoaded', () => {
+         theme.init();
+         language.init();
+         loadVoices(); // Cargar las voces para TTS
+         initializeChat();
+     });
   </script>
 </body>
 </html>

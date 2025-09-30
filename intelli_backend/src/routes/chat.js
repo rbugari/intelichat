@@ -44,10 +44,10 @@ router.post('', async (req, res) => {
         const result = await Database.query('INSERT INTO ejec_chat (cliente_id, chatbot_id, titulo) VALUES (?, ?, ?)', [cliente_id, chatbot_id, `Chat con ${chatbot.nombre}`]);
         chat_id = result.insertId;
     } else {
-        const chatInfoRows = await Database.query(`SELECT c.id, cl.nombre as cliente_nombre, cb.nombre as chatbot_nombre, c.cliente_id, c.chatbot_id FROM ejec_chat c JOIN cfg_cliente cl ON c.cliente_id = cl.id JOIN cfg_chatbot cb ON c.chatbot_id = cb.id WHERE c.id = ?`, [chat_id]);
+        const chatInfoRows = await Database.query(`SELECT c.id, cl.nombre as cliente_nombre, cb.nombre as chatbot_nombre, cb.default_lang, c.cliente_id, c.chatbot_id FROM ejec_chat c JOIN cfg_cliente cl ON c.cliente_id = cl.id JOIN cfg_chatbot cb ON c.chatbot_id = cb.id WHERE c.id = ?`, [chat_id]);
         if (!chatInfoRows.length) return res.status(404).json({ error: 'Chat session not found', status: 'error' });
         cliente = { id: chatInfoRows[0].cliente_id, nombre: chatInfoRows[0].cliente_nombre };
-        chatbot = { id: chatInfoRows[0].chatbot_id, nombre: chatInfoRows[0].chatbot_nombre };
+        chatbot = { id: chatInfoRows[0].chatbot_id, nombre: chatInfoRows[0].chatbot_nombre, default_lang: chatInfoRows[0].default_lang };
     }
 
     const allMessages = await Database.query('SELECT rol as role, contenido as content FROM ejec_mensaje WHERE chat_id = ? ORDER BY created_at ASC', [chat_id]);
@@ -62,7 +62,7 @@ router.post('', async (req, res) => {
             cliente_id: cliente.id,
             chatbot_id: chatbot.id,
             active_agent: defaultAgent.nombre.toLowerCase(),
-            language: 'es',
+            language: chatbot.default_lang || 'es',
             dot_number: null, // Initialize state variables
             email: null,
             intent: null,
@@ -213,6 +213,82 @@ router.get('/agent-info', async (req, res) => {
   } catch (error) {
     console.error('❌ Error en GET /chat/agent-info:', error);
     res.status(500).json({ error: 'Error interno del servidor', details: error.message, status: 'error' });
+  }
+});
+
+// Endpoint para cambiar idioma del prompt del agente
+router.post('/change-language', async (req, res) => {
+  try {
+    const { cliente_id, chatbot_id, language } = req.body;
+    
+    if (!cliente_id || !chatbot_id || !language) {
+      return res.status(400).json({ 
+        error: 'cliente_id, chatbot_id y language son requeridos', 
+        status: 'error' 
+      });
+    }
+
+    if (!['es', 'en'].includes(language)) {
+      return res.status(400).json({ 
+        error: 'language debe ser "es" o "en"', 
+        status: 'error' 
+      });
+    }
+
+    // Obtener el agente activo para el chatbot
+    const agenteResult = await Database.query(
+      `SELECT a.id, a.nombre, a.system_prompt_es, a.system_prompt_en
+       FROM cfg_agente a
+       LEFT JOIN cfg_chatbot c ON a.chatbot_id = c.id
+       WHERE a.is_active = 1 AND c.cliente_id = ? AND a.chatbot_id = ?
+       ORDER BY a.orden ASC, a.id ASC 
+       LIMIT 1`,
+      [cliente_id, chatbot_id]
+    );
+    
+    if (!agenteResult || agenteResult.length === 0) {
+      return res.status(404).json({ 
+        error: `No se encontró agente activo para cliente_id=${cliente_id} y chatbot_id=${chatbot_id}`, 
+        status: 'error' 
+      });
+    }
+
+    const agente = agenteResult[0];
+    const promptField = language === 'es' ? 'system_prompt_es' : 'system_prompt_en';
+    const selectedPrompt = agente[promptField];
+
+    if (!selectedPrompt) {
+      return res.status(404).json({ 
+        error: `No se encontró prompt en idioma ${language} para el agente ${agente.nombre}`, 
+        status: 'error' 
+      });
+    }
+
+    // Actualizar el prompt activo del agente (usando system_prompt_es como campo principal)
+    await Database.query(
+      'UPDATE cfg_agente SET system_prompt_es = ? WHERE id = ?',
+      [selectedPrompt, agente.id]
+    );
+
+    console.log(`✅ Idioma cambiado a ${language} para agente ${agente.nombre} (ID: ${agente.id})`);
+
+    res.json({
+      message: `Idioma cambiado exitosamente a ${language}`,
+      agent: {
+        id: agente.id,
+        nombre: agente.nombre,
+        language: language
+      },
+      status: 'success'
+    });
+
+  } catch (error) {
+    console.error('❌ Error en POST /chat/change-language:', error);
+    res.status(500).json({ 
+      error: 'Error interno del servidor', 
+      details: error.message, 
+      status: 'error' 
+    });
   }
 });
 

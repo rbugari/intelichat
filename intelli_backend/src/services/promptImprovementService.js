@@ -9,17 +9,35 @@ const GENERATE_PROMPT_PATH = path.resolve(__dirname, '../../../prompt-editor/met
 /**
  * Gets the agent's full context (tools, handoffs, params, messages) from the database.
  * @param {number} agentId - The agent's ID.
- * @returns {Promise<object>} - An object with the agent's context.
+ * @returns {Promise<object>} - An object with the agent's context including classification.
  */
 async function getAgentContext(agentId) {
-    const toolRows = await db.query(
-        `SELECT hr.nombre, hr.path, hr.metodo, hr.notas 
-         FROM cfg_herramienta_ruta AS hr
-         JOIN cfg_herramienta AS h ON hr.herramienta_id = h.id
-         WHERE h.agente_id = ? AND h.is_active = 1 AND hr.is_active = 1`,
-        [agentId]
-    );
+    // Obtener herramientas (APIs y Forms)
+    const toolsQuery = `
+        SELECT h.nombre, h.tipo, hr.nombre as ruta_nombre, hr.path, hr.metodo, hr.notas
+        FROM cfg_herramienta h
+        LEFT JOIN cfg_herramienta_ruta hr ON h.id = hr.herramienta_id AND hr.is_active = 1
+        WHERE h.agente_id = ? AND h.is_active = 1
+    `;
+    const toolsRows = await db.query(toolsQuery, [agentId]);
+    
+    const tools = [];
+    const forms = [];
+    
+    toolsRows.forEach(row => {
+        if (row.tipo === 'form') {
+            forms.push({ nombre: row.nombre });
+        } else if (row.tipo === 'api' && row.ruta_nombre) {
+            tools.push({ 
+                nombre: row.ruta_nombre, 
+                path: row.path, 
+                metodo: row.metodo, 
+                notas: row.notas 
+            });
+        }
+    });
 
+    // Obtener handoffs
     const handoffRows = await db.query(
         `SELECT ad.nombre, ad.descripcion 
          FROM cfg_agente_handoff AS h 
@@ -27,6 +45,20 @@ async function getAgentContext(agentId) {
          WHERE h.from_agente_id = ? AND h.is_active = 1`,
         [agentId]
     );
+
+    // Obtener cartuchos RAG
+    const ragQuery = `
+        SELECT rc.nombre, rc.dominio_tag, rc.notas
+        FROM cfg_rag_cartucho rc
+        INNER JOIN cfg_agente_rag_cartucho arc ON rc.id = arc.cartucho_id
+        WHERE arc.agente_id = ? AND rc.habilitado = 1
+    `;
+    const ragRows = await db.query(ragQuery, [agentId]);
+    const ragCartridges = ragRows.map(row => ({ 
+        nombre: row.nombre, 
+        dominio: row.dominio_tag,
+        descripcion: row.notas || `Cartucho RAG del dominio ${row.dominio_tag}`
+    }));
 
     const agentResult = await db.query(
         `SELECT temperatura, top_p, max_tokens, mensaje_bienvenida_es, mensaje_retorno_es, mensaje_despedida_es, mensaje_handoff_confirmacion_es, mensaje_final_tarea_es 
@@ -50,11 +82,26 @@ async function getAgentContext(agentId) {
         mensaje_final_tarea_es: agentData.mensaje_final_tarea_es
     };
 
+    // Clasificar agente automáticamente
+    const hasTools = tools.length > 0;
+    const hasForms = forms.length > 0;
+    const hasHandoffs = handoffRows.length > 0;
+    const hasRAG = ragCartridges.length > 0;
+    const isComplex = hasTools || hasForms || hasHandoffs || hasRAG;
+    const classification = isComplex ? "COMPLEJO" : "SIMPLE";
+
     return {
-        tools: toolRows.length > 0 ? JSON.stringify(toolRows, null, 2) : '[]',
+        tools: tools.length > 0 ? JSON.stringify(tools, null, 2) : '[]',
+        forms: forms.length > 0 ? JSON.stringify(forms, null, 2) : '[]',
         handoffs: handoffRows.length > 0 ? JSON.stringify(handoffRows, null, 2) : '[]',
+        ragCartridges: ragCartridges.length > 0 ? JSON.stringify(ragCartridges, null, 2) : '[]',
         params: JSON.stringify(params, null, 2),
-        messages: JSON.stringify(messages, null, 2)
+        messages: JSON.stringify(messages, null, 2),
+        classification,
+        hasTools,
+        hasForms,
+        hasHandoffs,
+        hasRAG
     };
 }
 
@@ -101,9 +148,12 @@ async function improvePrompt(agentId, currentPrompt, userSuggestion) {
         .replace('{{PROMPT_ACTUAL}}', safeCurrentPrompt)
         .replace('{{LISTA_DE_HERRAMIENTAS}}', context.tools)
         .replace('{{LISTA_DE_HANDOFFS}}', context.handoffs)
+        .replace('{{LISTA_DE_FORMS}}', context.forms || '[]')
+        .replace('{{LISTA_DE_RAG_CARTRIDGES}}', context.ragCartridges || '[]')
         .replace('{{SUGERENCIA_USUARIO}}', safeUserSuggestion)
         .replace('{{LISTA_DE_MENSAJES}}', context.messages)
-        .replace('{{PARAMETROS_LLM}}', context.params);
+        .replace('{{PARAMETROS_LLM}}', context.params)
+        .replace('{{AGENT_CLASSIFICATION}}', context.classification);
 
     console.log('[ASSISTANT_SERVICE] Calling LLM for recommendations...');
     const notes = await callLlm(recommendMetaPrompt);
@@ -115,9 +165,12 @@ async function improvePrompt(agentId, currentPrompt, userSuggestion) {
         .replace('{{PROMPT_ACTUAL}}', safeCurrentPrompt)
         .replace('{{LISTA_DE_HERRAMIENTAS}}', context.tools)
         .replace('{{LISTA_DE_HANDOFFS}}', context.handoffs)
+        .replace('{{LISTA_DE_FORMS}}', context.forms || '[]')
+        .replace('{{LISTA_DE_RAG_CARTRIDGES}}', context.ragCartridges || '[]')
         .replace('{{SUGERENCIA_USUARIO}}', safeUserSuggestion)
         .replace('{{LISTA_DE_MENSAJES}}', context.messages)
-        .replace('{{PARAMETROS_LLM}}', context.params);
+        .replace('{{PARAMETROS_LLM}}', context.params)
+        .replace('{{AGENT_CLASSIFICATION}}', context.classification);
 
     console.log('[ASSISTANT_SERVICE] Calling LLM for improved prompt...');
     const improvedPrompt = await callLlm(generateMetaPrompt);

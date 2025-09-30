@@ -22,30 +22,24 @@ console.log("DEBUG: app.js - Script started."); // DEBUG LOG
 const app = express();
 const sessions = new Map();
 
-// NEW: Log req.body at the very beginning
-app.use((req, res, next) => {
-    console.log('🚨 DEBUG: Raw Request Body:', req.body);
-    next();
-});
-
-// IMMEDIATE DEBUG MIDDLEWARE - FIRST THING AFTER EXPRESS INIT
-app.use((req, res, next) => {
-    console.log('🚨 IMMEDIATE DEBUG: Request received!', req.method, req.url);
-    next();
-});
-
 // Initialize database connection (with fallback)
 Database.initialize().catch(error => {
     console.warn('⚠️ Database connection failed, running in degraded mode:', error.message);
 });
 
-// Basic middleware
+// Basic middleware - CORS FIRST
 app.use(cors());
-app.use(express.json());
 
-// Debug middleware to log all requests - MUST BE BEFORE ROUTES
-console.log('🚀 MIDDLEWARE REGISTERED - Debug middleware is being added');
+// JSON parsing middleware - MUST BE BEFORE ANY BODY PROCESSING
+app.use(express.json({ limit: '10mb' }));
+
+// URL encoded parsing middleware
+app.use(express.urlencoded({ extended: true }));
+
+// Debug middleware AFTER JSON parsing
 app.use((req, res, next) => {
+    console.log('🚨 IMMEDIATE DEBUG: Request received!', req.method, req.url);
+    console.log('🚨 DEBUG: Processed Request Body:', req.body);
     console.log('🔥 MIDDLEWARE HIT!');
     console.log('🔥 METHOD:', req.method);
     console.log('🔥 URL:', req.originalUrl);

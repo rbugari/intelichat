@@ -2,6 +2,7 @@ const { getLLMResponse } = require('../llm');
 const { getPromptByAgent } = require('./prompts_hybrid');
 const { dynamicToolsService } = require('./services/dynamicToolsService');
 const Database = require('./database');
+const RAGService = require('./services/ragService');
 
 function summarizeToolResult(toolName, toolResult) {
     console.log(`DEBUG: bot_logic.js - summarizeToolResult called for ${toolName}`);
@@ -74,7 +75,43 @@ async function handleUserInput(userInput, currentSessionState, conversationHisto
         const currentPrompt = await getPromptByAgent(sessionState.active_agent, sessionState.language, sessionState.chatbot_id);
         console.log(`\n--- Turn ${turn + 1}/${MAX_TURNS} ---\n🔄 PROCESANDO - Agente: ${currentAgentName}`);
 
-        const llmResponse = await getLLMResponse(currentPrompt, currentHistory, sessionState, currentPrompt.id);
+        // --- Integración RAG para agente ID 200 ---
+        let ragContext = '';
+        if (currentPrompt.id === 200) { // Agente RAG
+            console.log('🔍 Detectado agente RAG - Buscando contexto relevante...');
+            try {
+                const ragService = new RAGService();
+                const ragResults = await ragService.search(
+                    userInput, 
+                    currentPrompt.id, 
+                    sessionState.cliente_id,
+                    { maxResults: 5, scoreThreshold: 0.7 }
+                );
+                
+                if (ragResults.totalResults > 0) {
+                    ragContext = ragService.formatResultsForPrompt(ragResults);
+                    console.log(`✅ RAG: Encontrados ${ragResults.totalResults} resultados relevantes`);
+                } else {
+                    console.log('⚠️ RAG: No se encontraron resultados relevantes');
+                }
+                
+                await ragService.disconnect();
+            } catch (error) {
+                console.error('❌ Error en búsqueda RAG:', error);
+            }
+        }
+
+        // Agregar contexto RAG al historial si existe
+        let modifiedHistory = [...currentHistory];
+        if (ragContext) {
+            // Insertar contexto RAG antes de la consulta del usuario
+            const lastUserMessage = modifiedHistory[modifiedHistory.length - 1];
+            if (lastUserMessage && lastUserMessage.role === 'user') {
+                lastUserMessage.content = ragContext + lastUserMessage.content;
+            }
+        }
+
+        const llmResponse = await getLLMResponse(currentPrompt, modifiedHistory, sessionState, currentPrompt.id);
 
         if (llmResponse.say) {
             responses.push({ text: llmResponse.say, agentName: sessionState.active_agent });

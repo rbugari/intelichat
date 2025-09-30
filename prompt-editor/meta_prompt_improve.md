@@ -30,6 +30,11 @@ Tu proceso se divide en dos fases, y debes entregar el resultado de ambas en una
 {{LISTA_DE_HANDOFFS}}
 ```
 
+### CARTUCHOS RAG DISPONIBLES
+```json
+{{LISTA_DE_RAG_CARTRIDGES}}
+```
+
 ---
 
 # TU TAREA
@@ -38,7 +43,8 @@ Tu proceso se divide en dos fases, y debes entregar el resultado de ambas en una
 
 Analiza el "PROMPT ORIGINAL" contra el contexto y las reglas de la arquitectura v2. Escribe una lista de recomendaciones claras y accionables para mejorarlo. Concéntrate en:
 - **Cumplimiento de Arquitectura v2:** ¿El prompt instruye el uso del JSON `{"say": "...", "action": ...}`? Si es un especialista, ¿se le obliga a usar `{"type": "finish_turn"}`?
-- **Coherencia:** ¿Usa los nombres y argumentos correctos de herramientas y handoffs?
+- **Coherencia:** ¿Usa los nombres y argumentos correctos de herramientas, handoffs y cartuchos RAG?
+- **Uso de RAG:** ¿Aprovecha los cartuchos RAG disponibles para consultas de conocimiento cuando es apropiado?
 - **Robustez:** ¿Maneja casos de error o respuestas inesperadas?
 
 Escribe tus recomendaciones en formato Markdown. Sé directo y técnico.
@@ -47,7 +53,8 @@ Escribe tus recomendaciones en formato Markdown. Sé directo y técnico.
 
 Usando tu análisis de la FASE 1 y todo el contexto, reescribe y entrega el `system_prompt` final y completo.
 - El prompt debe instruir al agente a responder siempre con la estructura JSON `{"say": "...", "action": ...}`.
-- Debe ser coherente con las herramientas y handoffs disponibles.
+- Debe ser coherente con las herramientas, handoffs y cartuchos RAG disponibles.
+- Debe incluir instrucciones sobre cuándo y cómo usar RAG para consultas de conocimiento.
 - Debe ser robusto y manejar diferentes flujos de conversación.
 
 ---

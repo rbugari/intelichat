@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS `cfg_agente` (
   KEY `idx_agente_modelo` (`llm_modelo_id`),
   CONSTRAINT `fk_agente_chatbot` FOREIGN KEY (`chatbot_id`) REFERENCES `cfg_chatbot` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_agente_llm` FOREIGN KEY (`llm_modelo_id`) REFERENCES `cfg_llm_modelo` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=108 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS `cfg_agente_prompt` (
   PRIMARY KEY (`id`),
   KEY `idx_agprompt_agente` (`agente_id`),
   CONSTRAINT `fk_agprompt_agente` FOREIGN KEY (`agente_id`) REFERENCES `cfg_agente` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=118 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS `cfg_chatbot` (
   UNIQUE KEY `uq_chatbot_cliente_nombre` (`cliente_id`,`nombre`),
   KEY `idx_chatbot_cliente` (`cliente_id`),
   CONSTRAINT `fk_chatbot_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -486,7 +486,7 @@ CREATE TABLE IF NOT EXISTS `ejec_chat` (
   KEY `fk_ejec_chat_cliente` (`cliente_id`),
   CONSTRAINT `fk_ejec_chat_chatbot` FOREIGN KEY (`chatbot_id`) REFERENCES `cfg_chatbot` (`id`),
   CONSTRAINT `fk_ejec_chat_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=382 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=386 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -562,7 +562,7 @@ CREATE TABLE IF NOT EXISTS `ejec_mensaje` (
   PRIMARY KEY (`id`),
   KEY `ix_ejec_msg_chat_created` (`chat_id`,`created_at`),
   CONSTRAINT `fk_ejec_msg_chat` FOREIGN KEY (`chat_id`) REFERENCES `ejec_chat` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2593 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2654 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 

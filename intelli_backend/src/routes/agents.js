@@ -200,6 +200,15 @@ router.post('/:id/improve-prompt',
 );
 
 /**
+ * @route GET /api/agents/:id/rag-cartridges
+ * @desc Get RAG cartridges associated with agent
+ * @access Private
+ */
+router.get('/:id/rag-cartridges',
+  asyncHandler(agentsController.getAgentRAGCartridges.bind(agentsController))
+);
+
+/**
  * @route POST /api/agents/:id/validate
  * @desc Validate agent consistency against its prompt
  * @access Private

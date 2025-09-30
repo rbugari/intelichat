@@ -17,6 +17,12 @@
         <header class="global-toolbar">
             <div class="toolbar-section-left">
                 <span class="toolbar-title">Editor de Agentes</span>
+                <div class="lang-toggle" title="Seleccionar idioma del prompt">
+                    <input type="checkbox" id="langToggle"/>
+                    <div class="track" id="langTrack">
+                        <div class="thumb">ESP</div>
+                    </div>
+                </div>
                 <div id="agentSelectorContainer" class="agent-selector-container">
                     <select id="clienteSelect" class="form-select"><option value="">Cliente...</option></select>
                     <select id="chatbotSelect" class="form-select" disabled><option value="">Chatbot...</option></select>
@@ -115,6 +121,10 @@
                     <h3>🛠️ Recursos</h3>
                     <p class="empty-state">Selecciona un agente.</p>
                 </div>
+                <div class="inspector-section" id="ragContent">
+                    <h3>🔍 RAG Cartuchos</h3>
+                    <p class="empty-state">Selecciona un agente.</p>
+                </div>
                 <div class="inspector-section" id="handoffsContent">
                     <h3>🤝 Handoffs</h3>
                     <p class="empty-state">Selecciona un agente.</p>
@@ -191,7 +201,27 @@
                     </div>
 
                     <div class="help-subsection">
-                        <h3>5. Finalizar Conversación</h3>
+                        <h3>5. Consultar RAG (Búsqueda en Conocimiento)</h3>
+                        <p>Para buscar información en los cartuchos RAG disponibles.</p>
+                        <pre><code>"action": {
+    "type": "rag_query",
+    "cartridge": "nombre_del_cartucho",
+    "query": "consulta de búsqueda"
+}</code></pre>
+                        <p><strong>Guía:</strong> Puedes ver los cartuchos RAG disponibles en la pestaña <strong>🔍 RAG Cartuchos</strong>.</p>
+                        <p><strong>Ejemplo práctico:</strong></p>
+                        <pre><code>{
+    "say": "Déjame buscar información sobre ese tema...",
+    "action": {
+        "type": "rag_query",
+        "cartridge": "documentacion_productos",
+        "query": "características del producto X"
+    }
+}</code></pre>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>6. Finalizar Conversación</h3>
                         <p>Para terminar el diálogo activamente.</p>
                         <pre><code>"action": { "type": "end_conversation" }</code></pre>
                     </div>
@@ -216,6 +246,53 @@
     "action": null
 }</code></pre>
                         <p><strong>Nota:</strong> Las variables se guardan con la intención <code>set_state</code>.</p>
+                    </div>
+                </section>
+
+                <section class="help-section">
+                    <h2>Mejores Prácticas con RAG</h2>
+                    
+                    <div class="help-subsection">
+                        <h3>Cuándo Usar RAG vs Tools vs Handoffs</h3>
+                        <ul>
+                            <li><strong>RAG:</strong> Para buscar información en documentos, manuales, bases de conocimiento.</li>
+                            <li><strong>Tools:</strong> Para ejecutar acciones (crear, actualizar, enviar emails, etc.).</li>
+                            <li><strong>Handoffs:</strong> Para derivar a agentes especializados en tareas específicas.</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>Combinando RAG con Otras Funcionalidades</h3>
+                        <p>Puedes usar RAG junto con tools y handoffs en el mismo prompt:</p>
+                        <pre><code>// Primero buscar información
+{
+    "say": "Déjame consultar la documentación...",
+    "action": {
+        "type": "rag_query",
+        "cartridge": "manual_usuario",
+        "query": "proceso de instalación"
+    }
+}
+
+// Luego ejecutar una acción basada en esa información
+{
+    "say": "Basándome en la documentación, voy a crear tu ticket...",
+    "action": {
+        "type": "call_tool",
+        "tool_name": "crear_ticket",
+        "args": { "categoria": "instalacion" }
+    }
+}</code></pre>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h3>Optimización de Consultas RAG</h3>
+                        <ul>
+                            <li>Usa consultas específicas y descriptivas</li>
+                            <li>Incluye contexto relevante en la consulta</li>
+                            <li>Combina múltiples consultas para información compleja</li>
+                        </ul>
+                        <p><strong>Ejemplo:</strong> En lugar de "producto X", usa "características técnicas del producto X modelo 2024"</p>
                     </div>
                 </section>
             </div>

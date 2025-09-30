@@ -115,6 +115,7 @@ class AgentsController {
   async getAgentById(req, res) {
     try {
       const { id } = req.params;
+      const { lang } = req.query; // Obtener el parámetro de idioma
       
       const query = `
         SELECT 
@@ -146,8 +147,10 @@ class AgentsController {
           es: agent.system_prompt_es || null,
           en: agent.system_prompt_en || null
         },
-        // Legacy support
-        system_prompt: agent.system_prompt_es || agent.system_prompt_en || null,
+        // Legacy support - usar el idioma solicitado o español por defecto
+        system_prompt: lang === 'en' ? 
+          (agent.system_prompt_en || agent.system_prompt_es) : 
+          (agent.system_prompt_es || agent.system_prompt_en),
         metadata: agent.metadata ? JSON.parse(agent.metadata) : null
       };
       
@@ -1101,6 +1104,53 @@ class AgentsController {
     } catch (error) {
       console.error(`Error improving prompt for agent ${id}:`, error);
       res.status(500).json({ success: false, message: 'Error al generar sugerencias del LLM.' });
+    }
+  }
+
+  /**
+   * Get RAG cartridges associated with agent
+   */
+  async getAgentRAGCartridges(req, res) {
+    try {
+      const { id } = req.params;
+      
+      // Check if agent exists
+      const checkQuery = 'SELECT id FROM cfg_agente WHERE id = ?';
+      const existingAgent = await database.query(checkQuery, [id]);
+      
+      if (existingAgent.length === 0) {
+        throw new NotFoundError('Agent not found');
+      }
+      
+      // Get RAG cartridges associated with the agent
+      const query = `
+        SELECT 
+          rc.id,
+          rc.nombre,
+          rc.dominio_tag,
+          rc.proveedor,
+          rc.indice_nombre,
+          rc.habilitado as activo,
+          arc.creado_en as associated_at
+        FROM cfg_rag_cartucho rc
+        INNER JOIN cfg_agente_rag_cartucho arc ON rc.id = arc.cartucho_id
+        WHERE arc.agente_id = ?
+        ORDER BY rc.nombre ASC
+      `;
+      
+      const ragCartridges = await database.query(query, [id]);
+      
+      res.json({
+        success: true,
+        data: ragCartridges
+      });
+      
+    } catch (error) {
+      console.error('Error getting agent RAG cartridges:', error);
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to fetch agent RAG cartridges');
     }
   }
 
