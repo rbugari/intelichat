@@ -75,11 +75,13 @@ async function handleUserInput(userInput, currentSessionState, conversationHisto
         const currentPrompt = await getPromptByAgent(sessionState.active_agent, sessionState.language, sessionState.chatbot_id);
         console.log(`\n--- Turn ${turn + 1}/${MAX_TURNS} ---\n🔄 PROCESANDO - Agente: ${currentAgentName}`);
 
-        // --- Integración RAG para agente ID 200 ---
+        // --- Integración RAG dinámica basada en configuración del agente ---
         let ragContext = '';
-        if (currentPrompt.id === 200) { // Agente RAG
-            console.log('🔍 Detectado agente RAG - Buscando contexto relevante...');
-            try {
+        const { getAgentConfiguration } = require('./services/validationService');
+        try {
+            const agentConfig = await getAgentConfiguration(currentPrompt.id);
+            if (agentConfig.hasRAG) {
+                console.log('🔍 Detectado agente con RAG - Buscando contexto relevante...');
                 const ragService = new RAGService();
                 const ragResults = await ragService.search(
                     userInput, 
@@ -96,9 +98,9 @@ async function handleUserInput(userInput, currentSessionState, conversationHisto
                 }
                 
                 await ragService.disconnect();
-            } catch (error) {
-                console.error('❌ Error en búsqueda RAG:', error);
             }
+        } catch (error) {
+            console.error('❌ Error en configuración/búsqueda RAG:', error);
         }
 
         // Agregar contexto RAG al historial si existe
@@ -146,14 +148,43 @@ async function handleUserInput(userInput, currentSessionState, conversationHisto
 
             case 'call_tool':
                 try {
-                    const { tool_name, args } = action;
-                    const toolResult = await dynamicToolsService.execute(tool_name, args);
-                    const toolResultSummary = summarizeToolResult(tool_name, toolResult);
+                    const { tool, args } = action; // Cambio: usar 'tool' en lugar de 'tool_name'
+                    const toolResult = await dynamicToolsService.execute(tool, args);
+                    const toolResultSummary = summarizeToolResult(tool, toolResult);
                     currentHistory.push({ role: 'user', content: toolResultSummary });
                     continue;
                 } catch (error) {
-                    console.error(`❌ Error en la ejecución de la herramienta ${action.tool_name}:`, error.message);
+                    console.error(`❌ Error en la ejecución de la herramienta ${action.tool}:`, error.message);
                     currentHistory.push({ role: 'user', content: `TOOL_ERROR: ${error.message}` });
+                    continue;
+                }
+
+            case 'rag_query':
+                try {
+                    console.log('🔍 Ejecutando consulta RAG...');
+                    const ragService = new RAGService();
+                    const ragResults = await ragService.search(
+                        action.query || userInput, 
+                        currentPrompt.id, 
+                        sessionState.cliente_id,
+                        { maxResults: 5, scoreThreshold: 0.7 }
+                    );
+                    
+                    let ragResponse = '';
+                    if (ragResults.totalResults > 0) {
+                        ragResponse = ragService.formatResultsForPrompt(ragResults);
+                        console.log(`✅ RAG: Encontrados ${ragResults.totalResults} resultados relevantes`);
+                    } else {
+                        ragResponse = 'No se encontraron resultados relevantes en la base de conocimiento.';
+                        console.log('⚠️ RAG: No se encontraron resultados relevantes');
+                    }
+                    
+                    await ragService.disconnect();
+                    currentHistory.push({ role: 'user', content: `RAG_RESULT: ${ragResponse}` });
+                    continue;
+                } catch (error) {
+                    console.error('❌ Error en consulta RAG:', error);
+                    currentHistory.push({ role: 'user', content: `RAG_ERROR: ${error.message}` });
                     continue;
                 }
 
