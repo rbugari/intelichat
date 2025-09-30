@@ -9,6 +9,7 @@ Con la **Release 1.7**, el sistema ha sido refactorizado para mejorar su fiabili
 - ✅ **Flujo de Agentes Fiable**: El modelo "hub-and-spoke" (con `INFO` como coordinador) ahora funciona de manera predecible.
 - ✅ **Prompts Simplificados**: La creación de prompts es más sencilla y se centra en el diálogo, no en la generación de JSON complejo.
 - ✅ **Sistema Completamente Funcional**: Todas las funcionalidades anteriores (multi-agente, multi-proveedor, herramientas dinámicas) se conservan.
+- ✅ **Validación Inteligente y Contextual**: Sistema de validación que clasifica automáticamente los agentes y aplica reglas diferenciadas según su complejidad.
 
 ## 🚀 Acceso Local
 
@@ -30,6 +31,12 @@ Esta release introduce un cambio fundamental en la filosofía del sistema para g
 ### 🎯 Sistema Multi-Agente Predecible
 - **INFO (Coordinador)**: Su rol como agente central está ahora reforzado por el código.
 - **ONBOARDING / CLIENTES (Especialistas)**: Siguen un ciclo de vida claro (reciben control, ejecutan su tarea, y devuelven el control a `INFO`), que es forzado por el backend.
+
+### 🔍 Validación Inteligente y Contextual
+- **Clasificación Automática**: El sistema clasifica automáticamente los agentes como SIMPLE o COMPLEJO según sus características.
+- **Reglas Diferenciadas**: Los agentes simples reciben validación relajada con sugerencias, mientras que los complejos reciben validación estricta con errores críticos.
+- **Reportes Contextuales**: Los reportes de validación se adaptan al tipo de agente, proporcionando información relevante y accionable.
+- **Flexibilidad Inteligente**: Permite mayor libertad creativa para agentes simples sin comprometer la calidad de los complejos.
 
 ## 🏗️ Arquitectura Release 1.7
 

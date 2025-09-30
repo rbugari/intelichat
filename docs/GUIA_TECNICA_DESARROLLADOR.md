@@ -152,7 +152,25 @@ La Release 1.7 introduce una nueva aplicación frontend dedicada al desarrollo y
 -   **Tecnología:** HTML, CSS, JavaScript (con la librería EasyMDE para el editor de Markdown).
 -   **Servidor:** Corre en `http://localhost:5003` a través de un simple servidor de Express (`server.js`).
 
-### a. API de Soporte en el Backend
+### a. Sistema de Validación Inteligente y Contextual
+
+El Editor de Agentes incluye un sistema de validación revolucionario que se adapta automáticamente al tipo de agente:
+
+#### Clasificación Automática de Agentes
+El sistema analiza automáticamente la configuración del agente y lo clasifica como:
+- **SIMPLE**: Sin herramientas, formularios, handoffs o RAG
+- **COMPLEJO**: Con al menos una herramienta, formulario, handoff o RAG
+
+#### Validación Diferenciada
+- **Agentes Simples**: Validación relajada con sugerencias y recomendaciones
+- **Agentes Complejos**: Validación estricta con errores críticos y cumplimiento obligatorio
+
+#### Implementación Técnica
+- **`validationService.js`**: Contiene la lógica de clasificación automática (`classifyAgent()`) y generación de reportes contextuales
+- **`meta_prompt_validate_llm.md`**: Template inteligente que adapta las reglas de validación según el tipo de agente
+- **Reportes JSON**: Incluyen `agent_classification` y `validation_mode` para transparencia total
+
+### b. API de Soporte en el Backend
 
 Para que el editor funcione, el `intelli_backend` expone una serie de endpoints específicos que le proporcionan los datos necesarios y la lógica de asistencia por IA.
 
@@ -161,4 +179,4 @@ Para que el editor funcione, el `intelli_backend` expone una serie de endpoints 
 -   `GET /api/agents/:id/tools-editor`, `GET /api/agents/:id/handoffs`: Obtienen la información contextual (recursos y handoffs) que se muestra en el panel de solo lectura del editor.
 -   `PUT /api/agents/:id/prompt`: Guarda todos los cambios realizados en el editor para un agente (prompt, parámetros y mensajes).
 -   `POST /api/agents/:id/improve-prompt`: El núcleo de la función "Asistente", que utiliza un LLM para analizar y mejorar el prompt actual.
--   `POST /api/agents/:id/validate`: El núcleo de la función "Validación", que utiliza un LLM para generar un informe de consistencia del prompt.
+-   `POST /api/agents/:id/validate`: El núcleo de la función "Validación", que utiliza el sistema inteligente para generar un informe contextual de consistencia del prompt.

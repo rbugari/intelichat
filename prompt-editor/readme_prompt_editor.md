@@ -2,6 +2,10 @@
 
 Bienvenido al Editor de Agentes, una herramienta de desarrollo inspirada en IDEs profesionales y diseñada para la creación, edición y optimización de los `system prompts` de tus agentes de IA.
 
+## 🔍 Validación Inteligente y Contextual
+
+El Editor de Agentes incluye un sistema de validación revolucionario que se adapta automáticamente al tipo de agente que estés desarrollando, proporcionando una experiencia de desarrollo más inteligente y eficiente.
+
 ## Características Principales
 
 ### 1. Interfaz de Usuario "Inspector Model"
@@ -20,12 +24,23 @@ Lanzado desde el botón `✨ Asistente`, esta funcionalidad te permite refinar t
 *   **Generación de Sugerencias**: La IA analizará tu prompt actual y tus instrucciones para generar notas de mejora y una versión optimizada del prompt.
 *   **Aplicación Sencilla**: Con un solo clic, puedes aplicar la sugerencia generada por la IA directamente al editor principal.
 
-### 3. Validación de Consistencia (Modal de Validación)
+### 3. Validación Inteligente y Contextual (Modal de Validación)
 
-Lanzado desde el botón `🧪 Validación`, asegura que tus prompts sean coherentes con la configuración de tu agente:
+Lanzado desde el botón `🧪 Validación`, el sistema ahora se adapta automáticamente al tipo de agente que estés desarrollando:
 
-*   **Análisis Semántico**: El sistema utiliza un LLM para verificar de forma inteligente si las herramientas y handoffs configurados están mencionados de manera clara y comprensible en tu prompt.
-*   **Informes Detallados**: Recibe un informe estructurado con indicadores visuales (✅, ⚠️, ❌) que te ayudarán a identificar rápidamente posibles inconsistencias o áreas de mejora.
+#### Clasificación Automática
+El sistema analiza automáticamente tu agente y lo clasifica como:
+- **🟢 AGENTE SIMPLE**: Sin herramientas, formularios, handoffs o RAG. Ideal para agentes conversacionales básicos.
+- **🔴 AGENTE COMPLEJO**: Con herramientas, formularios, handoffs o RAG. Requiere mayor precisión arquitectónica.
+
+#### Validación Diferenciada
+- **Para Agentes Simples**: Validación relajada con sugerencias y recomendaciones que fomentan la creatividad conversacional.
+- **Para Agentes Complejos**: Validación estricta con errores críticos que aseguran el cumplimiento de patrones arquitectónicos.
+
+#### Características Avanzadas
+*   **Análisis Semántico Contextual**: El sistema utiliza un LLM para verificar de forma inteligente si las herramientas y handoffs configurados están mencionados de manera clara y comprensible en tu prompt, adaptando el nivel de exigencia según el tipo de agente.
+*   **Informes Adaptativos**: Recibe un informe estructurado con indicadores visuales (✅, ⚠️, ❌) que se ajustan al contexto de tu agente, proporcionando feedback relevante y accionable.
+*   **Transparencia Total**: Los reportes incluyen información sobre la clasificación del agente y el modo de validación aplicado.
 
 ## Cómo Empezar
 
@@ -35,7 +50,24 @@ Lanzado desde el botón `🧪 Validación`, asegura que tus prompts sean coheren
 4.  **Edita o Mejora**:
     *   Usa las pestañas del panel izquierdo para cambios manuales.
     *   Usa el botón `✨ Asistente` para obtener sugerencias inteligentes.
-    *   Usa el botón `🧪 Validación` para verificar la consistencia.
+    *   Usa el botón `🧪 Validación` para verificar la consistencia con validación contextual automática.
 5.  **Guarda tus Cambios**: Haz clic en `💾 Guardar` para aplicar las modificaciones al prompt del agente.
+
+## Ventajas de la Validación Inteligente
+
+### Para Desarrolladores de Agentes Simples
+- **Mayor Libertad Creativa**: Enfócate en crear conversaciones naturales y atractivas sin preocuparte por restricciones técnicas estrictas.
+- **Sugerencias Constructivas**: Recibe recomendaciones que mejoran la calidad conversacional sin bloquear tu creatividad.
+- **Desarrollo Ágil**: Itera rápidamente en tus ideas sin barreras técnicas innecesarias.
+
+### Para Desarrolladores de Agentes Complejos
+- **Garantía de Calidad**: Asegura que todos los componentes técnicos (herramientas, handoffs, formularios) estén correctamente implementados.
+- **Prevención de Errores**: Detecta problemas antes de que lleguen a producción.
+- **Cumplimiento Arquitectónico**: Mantiene la consistencia con los patrones establecidos del sistema.
+
+### Para Todos los Desarrolladores
+- **Transparencia**: Siempre sabes qué tipo de validación se está aplicando y por qué.
+- **Eficiencia**: No pierdas tiempo con validaciones irrelevantes para tu tipo de agente.
+- **Aprendizaje**: Comprende mejor las diferencias entre tipos de agentes y cuándo usar cada uno.
 
 ¡Esperamos que disfrutes de esta nueva versión del Editor de Agentes!

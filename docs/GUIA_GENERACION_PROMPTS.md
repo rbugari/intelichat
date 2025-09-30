@@ -6,7 +6,32 @@
 
 Para aplicar los principios de esta guía, se recomienda encarecidamente utilizar el **Editor de Agentes**, disponible en `http://localhost:5003`.
 
-Esta herramienta proporciona un entorno de desarrollo integrado con asistencia de IA, validación y acceso a toda la configuración del agente, facilitando la creación de prompts robustos y coherentes con la arquitectura del sistema.
+Esta herramienta proporciona un entorno de desarrollo integrado con asistencia de IA, **validación inteligente y contextual** y acceso a toda la configuración del agente, facilitando la creación de prompts robustos y coherentes con la arquitectura del sistema.
+
+---
+
+## 🔍 Sistema de Validación Inteligente
+
+El Editor de Agentes incluye un sistema de validación que se adapta automáticamente al tipo de agente que estés creando:
+
+### Clasificación Automática de Agentes
+
+El sistema clasifica automáticamente tu agente en dos categorías:
+
+- **🟢 AGENTE SIMPLE**: Sin herramientas, formularios, handoffs o RAG. Ideal para agentes conversacionales básicos.
+- **🔴 AGENTE COMPLEJO**: Con herramientas, formularios, handoffs o RAG. Requiere mayor precisión arquitectónica.
+
+### Reglas de Validación Diferenciadas
+
+**Para Agentes Simples:**
+- ✅ Validación **relajada** con sugerencias y recomendaciones
+- ✅ Mayor flexibilidad creativa en el diseño del prompt
+- ✅ Enfoque en la calidad conversacional más que en la estructura técnica
+
+**Para Agentes Complejos:**
+- ⚠️ Validación **estricta** con errores críticos
+- ⚠️ Cumplimiento obligatorio de patrones arquitectónicos
+- ⚠️ Verificación rigurosa de herramientas, handoffs y formularios
 
 ---
 
@@ -155,8 +180,23 @@ La conversación es fluida, lógica y, lo más importante, **fiable**.
 
 ## 6. Checklist de Verificación (Actualizado)
 
+### Para Todos los Agentes:
 - [ ] ¿Mi prompt se centra en la **conversación** y no en la generación de código JSON?
 - [ ] ¿Le enseño a mi agente a **declarar intenciones** (`call_tool`, `handoff`, `finish_turn`) en lugar de darle estructuras complejas?
+
+### Para Agentes Simples (Validación Relajada):
+- [ ] ¿El agente tiene una personalidad clara y conversacional?
+- [ ] ¿Las respuestas son naturales y útiles para el usuario?
+- [ ] ¿Se mantiene el contexto de la conversación?
+
+### Para Agentes Complejos (Validación Estricta):
 - [ ] Para los especialistas, ¿la regla final es siempre declarar `finish_turn` después de dar su resultado?
 - [ ] Para `INFO`, ¿existe una regla clara sobre qué hacer cuando un especialista le devuelve el control?
 - [ ] ¿Los nombres de `tool_name` y `target_agent` que uso en el prompt coinciden con los configurados en la base de datos?
+- [ ] ¿Todas las herramientas asignadas tienen instrucciones claras de uso?
+- [ ] ¿Los handoffs están justificados y bien definidos?
+
+### Aprovecha la Validación Inteligente:
+- [ ] ¿He utilizado el Editor de Agentes para validar mi prompt?
+- [ ] ¿He revisado las sugerencias específicas para mi tipo de agente?
+- [ ] ¿He corregido todos los errores críticos (para agentes complejos)?
