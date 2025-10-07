@@ -1,10 +1,51 @@
 const path = require('path');
-const dotenvResult = require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+const fs = require('fs');
 
-if (dotenvResult.error) {
-  console.error('❌ ERROR: Could not load .env file from root.', dotenvResult.error);
+// Configuración de dotenv opcional para producción
+const envPath = path.resolve(__dirname, '../../.env');
+const envExists = fs.existsSync(envPath);
+
+if (envExists) {
+  const dotenvResult = require('dotenv').config({ path: envPath });
+  if (dotenvResult.error) {
+    console.error('❌ ERROR: Could not load .env file from root.', dotenvResult.error);
+  } else {
+    console.log('✅ SUCCESS: Loaded .env file from:', envPath);
+  }
 } else {
-  console.log('✅ SUCCESS: Loaded .env file from:', path.resolve(__dirname, '../../.env'));
+  console.log('ℹ️  INFO: No .env file found. Using environment variables from system (Railway mode).');
+}
+
+// Validación de variables de entorno críticas
+const requiredEnvVars = {
+  'OPENAI_API_KEY': 'OpenAI API key for LLM functionality',
+  'DB_HOST': 'Database host',
+  'DB_USER': 'Database user',
+  'DB_PASSWORD': 'Database password',
+  'DB_NAME': 'Database name'
+};
+
+const missingVars = [];
+for (const [varName, description] of Object.entries(requiredEnvVars)) {
+  if (!process.env[varName] || process.env[varName].trim() === '') {
+    missingVars.push(`${varName} (${description})`);
+  }
+}
+
+if (missingVars.length > 0) {
+  console.error('❌ CRITICAL ERROR: Missing required environment variables:');
+  missingVars.forEach(varInfo => console.error(`   - ${varInfo}`));
+  console.error('');
+  console.error('🔧 To fix this in Railway:');
+  console.error('   1. Go to your Railway project dashboard');
+  console.error('   2. Navigate to Variables tab');
+  console.error('   3. Add the missing environment variables');
+  console.error('   4. Redeploy the application');
+  console.error('');
+  process.exit(1);
+}
+
+console.log('✅ All required environment variables are present.');
   
   const getEditorModelName = () => {
     const provider = process.env.LLM_PROVIDER || 'openai';
