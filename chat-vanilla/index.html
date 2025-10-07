@@ -177,7 +177,9 @@
     const config = {
       cliente_id: parseInt(urlParams.get('cliente_id')) || 1,
       chatbot_id: parseInt(urlParams.get('chatbot_id')) || 1,
-      backendUrl: 'http://localhost:3000',
+      backendUrl: window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000' 
+        : 'https://intelichat-backend.railway.app',
       sttProvider: 'backend' // Valor inicial, se actualizará desde el backend
     };
 

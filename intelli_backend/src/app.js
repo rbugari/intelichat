@@ -45,7 +45,20 @@ Database.initialize().catch(error => {
 });
 
 // Basic middleware - CORS FIRST
-app.use(cors());
+const corsOptions = {
+    origin: process.env.NODE_ENV === 'production' 
+        ? [
+            'https://intelichat-frontend.vercel.app',
+            'https://intelichat-prompt-editor.vercel.app',
+            /\.vercel\.app$/
+          ]
+        : ['http://localhost:5001', 'http://localhost:5003', 'http://127.0.0.1:5001', 'http://127.0.0.1:5003'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 
 // JSON parsing middleware - MUST BE BEFORE ANY BODY PROCESSING
 app.use(express.json({ limit: '10mb' }));

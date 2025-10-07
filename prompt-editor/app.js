@@ -1,6 +1,8 @@
 // Configuración de la aplicación
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:3001', // Backend URL
+    API_BASE_URL: window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001' 
+        : 'https://intelichat-backend.railway.app', // Backend URL
     EDITOR_OPTIONS: {
         autofocus: true,
         spellChecker: false,
