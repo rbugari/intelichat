@@ -46,28 +46,27 @@ if (missingVars.length > 0) {
 }
 
 console.log('✅ All required environment variables are present.');
-  
-  const getEditorModelName = () => {
-    const provider = process.env.LLM_PROVIDER || 'openai';
-    switch (provider) {
-      case 'openrouter':
-        return process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
-      case 'groq':
-        return process.env.GROQ_MODEL || 'llama3-70b-8192';
-      case 'openai':
-      default:
-        return process.env.OPENAI_MODEL || 'gpt-4-turbo';
-    }
-  };
 
-  const internalModel = getEditorModelName();
-  const internalProvider = process.env.LLM_PROVIDER || 'openai';
+const getEditorModelName = () => {
+  const provider = process.env.LLM_PROVIDER || 'openai';
+  switch (provider) {
+    case 'openrouter':
+      return process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+    case 'groq':
+      return process.env.GROQ_MODEL || 'llama3-70b-8192';
+    case 'openai':
+    default:
+      return process.env.OPENAI_MODEL || 'gpt-4-turbo';
+  }
+};
 
-  console.log('--------------------------------------------------------------------------');
-  console.log(`✅ INTERNAL LLM CONFIG: Provider for app tasks is '${internalProvider}'.`);
-  console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.`);
-  console.log('--------------------------------------------------------------------------');
-}
+const internalModel = getEditorModelName();
+const internalProvider = process.env.LLM_PROVIDER || 'openai';
+
+console.log('--------------------------------------------------------------------------');
+console.log(`✅ INTERNAL LLM CONFIG: Provider for app tasks is '${internalProvider}'.`);
+console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.`);
+console.log('--------------------------------------------------------------------------');
 
 const express = require('express');
 const cors = require('cors');
