@@ -35,6 +35,9 @@ const { agentReportData } = require('./startup_report');
 const Database = require('./database');
 
 console.log("DEBUG: app.js - Script started."); // DEBUG LOG
+console.log(`🚀 Railway Debug: NODE_ENV=${process.env.NODE_ENV}`);
+console.log(`🚀 Railway Debug: PORT=${process.env.PORT}`);
+console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SET'}`);
 
 const app = express();
 const sessions = new Map();
@@ -42,6 +45,7 @@ const sessions = new Map();
 // Initialize database connection (with fallback)
 Database.initialize().catch(error => {
     console.warn('⚠️ Database connection failed, running in degraded mode:', error.message);
+    console.log('🚀 Railway Debug: Database connection error details:', error);
 });
 
 // Basic middleware - CORS FIRST
@@ -132,42 +136,58 @@ console.log('🚀 API: API routes registered successfully!');
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
-    console.log("DEBUG: app.js - /health endpoint hit from:", req.get('User-Agent')); // DEBUG LOG
+    console.log("🚀 Railway Debug: /health endpoint hit from:", req.get('User-Agent')); // DEBUG LOG
+    console.log("🚀 Railway Debug: Health check starting...");
     
-    // Verificar estado de la base de datos
-    const dbConnected = await Database.healthCheck();
-    
-    // Si se solicita configuración, incluirla en la respuesta
-    const includeConfig = req.query.config === 'true';
-    let configData = {};
-    
-    if (includeConfig) {
-        try {
-            console.log('🔍 DEBUG: Including config data in health response');
-            const clientes = await Database.query('SELECT * FROM cfg_cliente WHERE is_active = 1');
-            const chatbots = await Database.query('SELECT * FROM cfg_chatbot WHERE is_active = 1');
-            const agentes = await Database.query('SELECT * FROM cfg_agente WHERE is_active = 1');
-            
-            configData = {
-                clientes,
-                chatbots,
-                agentes
-            };
-        } catch (error) {
-            console.error('🔍 DEBUG: Error getting config data:', error);
-            configData = { error: error.message };
+    try {
+        // Verificar estado de la base de datos
+        const dbConnected = await Database.healthCheck();
+        console.log("🚀 Railway Debug: Database health check result:", dbConnected);
+        
+        // Si se solicita configuración, incluirla en la respuesta
+        const includeConfig = req.query.config === 'true';
+        let configData = {};
+        
+        if (includeConfig) {
+            try {
+                console.log('🔍 DEBUG: Including config data in health response');
+                const clientes = await Database.query('SELECT * FROM cfg_cliente WHERE is_active = 1');
+                const chatbots = await Database.query('SELECT * FROM cfg_chatbot WHERE is_active = 1');
+                const agentes = await Database.query('SELECT * FROM cfg_agente WHERE is_active = 1');
+                
+                configData = {
+                    clientes,
+                    chatbots,
+                    agentes
+                };
+            } catch (error) {
+                console.error('🔍 DEBUG: Error getting config data:', error);
+                configData = { error: error.message };
+            }
         }
+        
+        const healthResponse = {
+            status: 'ok',
+            database: dbConnected ? 'connected' : 'disconnected',
+            message: 'Server is healthy',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime() + 's',
+            port: process.env.PORT || 3000,
+            ...(includeConfig && { config: configData })
+        };
+        
+        console.log("🚀 Railway Debug: Health response:", JSON.stringify(healthResponse, null, 2));
+        res.status(200).json(healthResponse);
+        console.log("🚀 Railway Debug: /health endpoint response sent successfully");
+    } catch (error) {
+        console.error("🚀 Railway Debug: Health check error:", error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Health check failed',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
-    
-    res.status(200).json({
-        status: 'ok',
-        database: dbConnected ? 'connected' : 'disconnected',
-        message: 'Server is healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime() + 's',
-        ...(includeConfig && { config: configData })
-    });
-    console.log("DEBUG: app.js - /health endpoint response sent."); // DEBUG LOG
 });
 
 
@@ -548,8 +568,10 @@ setTimeout(() => {
 // Export the app and sessions for testing
 module.exports = { app, sessions };
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server is running on port ${PORT}`);
   console.log(`🔗 Local: http://localhost:${PORT}`);
+  console.log(`🚀 Railway: Server listening on 0.0.0.0:${PORT}`);
+  console.log(`🏥 Health endpoint: http://localhost:${PORT}/health`);
 });
