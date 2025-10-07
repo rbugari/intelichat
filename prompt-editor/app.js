@@ -1,6 +1,6 @@
 // Configuración de la aplicación
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:3000', // Backend URL
+    API_BASE_URL: 'http://localhost:3001', // Backend URL
     EDITOR_OPTIONS: {
         autofocus: true,
         spellChecker: false,
@@ -503,7 +503,17 @@ async function handleAgenteChange() {
     try {
         showStatus('Cargando datos del agente...', 'saving');
         const response = await fetchAPI(`/api/agents/${agenteId}?lang=${AppState.currentLanguage}`);
-        const agentData = response.data && response.data[0] ? response.data[0] : response.data;
+        // Manejar estructura de datos del backend: response.data.0 o response.data[0]
+        let agentData = null;
+        if (response.data) {
+            if (response.data[0]) {
+                agentData = response.data[0];
+            } else if (response.data['0']) {
+                agentData = response.data['0'];
+            } else {
+                agentData = response.data;
+            }
+        }
 
         if (!agentData) throw new Error('Respuesta de API inválida');
 
@@ -558,8 +568,9 @@ function updateInspectorPanel() {
     // Info
     Elements.agentInfo.innerHTML = `
         <h3>ℹ️ Info del Agente</h3>
-        <div class="info-row"><span class="info-label">ID:</span><span class="info-value">${agent.id}</span></div>
-        <div class="info-row"><span class="info-label">Rol:</span><span class="info-value">${agent.nombre}</span></div>
+        <div class="info-row"><span class="info-label">ID:</span><span class="info-value">${agent.agente_id || agent.id}</span></div>
+        <div class="info-row"><span class="info-label">Nombre:</span><span class="info-value">${agent.nombre || 'N/A'}</span></div>
+        <div class="info-row"><span class="info-label">Rol:</span><span class="info-value">${agent.rol || 'N/A'}</span></div>
         <div class="info-row"><span class="info-label">Estado:</span><span class="info-value">${agent.is_active ? 'Activo' : 'Inactivo'}</span></div>
         <div class="info-row"><span class="info-label">Modelo LLM:</span><span class="info-value">${agent.llm_model_name || 'N/A'}</span></div>
     `;
@@ -574,7 +585,9 @@ function updateInspectorPanel() {
     if (AppState.forms.length > 0) {
         recursosHtml += '<h4>Formularios</h4>';
         AppState.forms.forEach(form => {
-            recursosHtml += `<div class="resource-item"><h4>📋 ${form.nombre}</h4><p>${form.descripcion || 'Sin descripción'}</p></div>`;
+            const formName = form.nombre || form.name || 'Sin nombre';
+            const formDescription = form.descripcion || form.description || 'Sin descripción';
+            recursosHtml += `<div class="resource-item"><h4>📋 ${formName}</h4><p>${formDescription}</p></div>`;
         });
     }
     if (AppState.apis.length === 0 && AppState.forms.length === 0) {
@@ -605,8 +618,10 @@ function updateRAGContent() {
 
     let ragHtml = '';
     AppState.ragCartridges.forEach(cartucho => {
-        const statusClass = cartucho.activo ? 'status-active' : 'status-inactive';
-        const statusText = cartucho.activo ? 'Activo' : 'Inactivo';
+        // Verificar múltiples campos para el estado activo
+        const isActive = cartucho.activo || cartucho.habilitado || cartucho.active || cartucho.enabled;
+        const statusClass = isActive ? 'status-active' : 'status-inactive';
+        const statusText = isActive ? 'Activo' : 'Inactivo';
         
         ragHtml += `
             <div class="resource-item">
@@ -619,7 +634,7 @@ function updateRAGContent() {
                     <p><strong>Índice:</strong> ${cartucho.indice_nombre}</p>
                     ${cartucho.dominio_tag ? `<p><strong>Dominio:</strong> ${cartucho.dominio_tag}</p>` : ''}
                 </div>
-                ${cartucho.activo ? `
+                ${isActive ? `
                 <div class="resource-actions">
                     <button class="btn-insert-rag" onclick="insertRAGSnippet('${cartucho.nombre}')" title="Insertar snippet RAG">
                         📝 Insertar RAG Query

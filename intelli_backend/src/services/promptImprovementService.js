@@ -111,21 +111,63 @@ async function getAgentContext(agentId) {
  * @returns {Promise<string>} - The LLM's response.
  */
 async function callLlm(metaPrompt) {
+    const provider = process.env.LLM_PROVIDER || 'openai';
+    let client;
+    let model;
+    let requestOptions;
+
     try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        switch (provider) {
+            case 'openrouter':
+                if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set');
+                client = new OpenAI({
+                    apiKey: process.env.OPENROUTER_API_KEY,
+                    baseURL: 'https://openrouter.ai/api/v1',
+                    defaultHeaders: {
+                        'HTTP-Referer': process.env.OPENROUTER_REFERRER || 'http://localhost:3000',
+                        'X-Title': process.env.OPENROUTER_X_TITLE || 'InteliChat Improvement'
+                    }
+                });
+                model = process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+                requestOptions = {
+                    model: model,
+                    messages: [{ role: "user", content: metaPrompt }],
+                    max_tokens: 8000,
+                };
+                break;
 
-        console.log('[callLlm] Making request to OpenAI with model:', process.env.OPENAI_MODEL || "gpt-4-turbo");
-        const response = await openai.chat.completions.create({
-            model: process.env.OPENAI_MODEL || "gpt-4-turbo",
-            messages: [{ role: "user", content: metaPrompt }],
-            max_completion_tokens: 8000
-        });
+            case 'groq':
+                if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set');
+                const Groq = require('groq-sdk');
+                client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+                model = process.env.GROQ_MODEL || 'llama3-70b-8192';
+                requestOptions = {
+                    model: model,
+                    messages: [{ role: "user", content: metaPrompt }],
+                    max_tokens: 8000,
+                };
+                break;
 
-        console.log('[callLlm] Raw OpenAI response:', JSON.stringify(response, null, 2));
+            case 'openai':
+            default:
+                if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
+                client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+                model = process.env.OPENAI_MODEL || 'gpt-4-turbo';
+                requestOptions = {
+                    model: model,
+                    messages: [{ role: "user", content: metaPrompt }],
+                    max_tokens: 8000,
+                };
+                break;
+        }
 
+        console.log(`[callLlm] Making request to ${provider} with model:`, model);
+        const response = await client.chat.completions.create(requestOptions);
+        console.log(`[callLlm] Raw ${provider} response:`, JSON.stringify(response, null, 2));
         return response.choices[0].message.content;
+
     } catch (error) {
-        console.error('[callLlm] Error during OpenAI API call:', error);
+        console.error(`[callLlm] Error during ${provider} API call:`, error);
         return ""; // Return empty string on error to avoid crashing
     }
 }

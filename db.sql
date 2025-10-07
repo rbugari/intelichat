@@ -145,7 +145,30 @@ CREATE TABLE IF NOT EXISTS `cfg_agente_prompt` (
   PRIMARY KEY (`id`),
   KEY `idx_agprompt_agente` (`agente_id`),
   CONSTRAINT `fk_agprompt_agente` FOREIGN KEY (`agente_id`) REFERENCES `cfg_agente` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=126 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- La exportación de datos fue deseleccionada.
+
+-- Volcando estructura para tabla kinocsmy_intelichat.cfg_agente_rag_cartucho
+CREATE TABLE IF NOT EXISTS `cfg_agente_rag_cartucho` (
+  `agente_id` bigint(20) NOT NULL,
+  `cartucho_id` bigint(20) NOT NULL,
+  `cliente_id` bigint(20) NOT NULL,
+  `es_default` tinyint(1) NOT NULL DEFAULT 0,
+  `permite_hybrid` tinyint(1) NOT NULL DEFAULT 0,
+  `permite_rerank` tinyint(1) NOT NULL DEFAULT 0,
+  `max_q_por_turno` int(11) NOT NULL DEFAULT 1,
+  `max_q_por_conv` int(11) NOT NULL DEFAULT 5,
+  `prioridad_orden` int(11) NOT NULL DEFAULT 100,
+  `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`agente_id`,`cartucho_id`),
+  KEY `idx_agente_orden` (`agente_id`,`prioridad_orden`),
+  KEY `idx_cliente` (`cliente_id`),
+  KEY `fk_arc_cartucho` (`cartucho_id`),
+  CONSTRAINT `fk_arc_agente` FOREIGN KEY (`agente_id`) REFERENCES `cfg_agente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_arc_cartucho` FOREIGN KEY (`cartucho_id`) REFERENCES `cfg_rag_cartucho` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_arc_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -385,6 +408,51 @@ CREATE TABLE IF NOT EXISTS `cfg_llm_proveedor` (
 
 -- La exportación de datos fue deseleccionada.
 
+-- Volcando estructura para tabla kinocsmy_intelichat.cfg_rag_cartucho
+CREATE TABLE IF NOT EXISTS `cfg_rag_cartucho` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `cliente_id` bigint(20) NOT NULL,
+  `nombre` varchar(100) NOT NULL,
+  `dominio_tag` varchar(80) NOT NULL,
+  `proveedor` enum('qdrant','pinecone','databricks','pgvector','otro') NOT NULL,
+  `endpoint` varchar(255) NOT NULL,
+  `indice_nombre` varchar(128) NOT NULL,
+  `capacidades` longtext DEFAULT NULL,
+  `topk_default` int(11) NOT NULL DEFAULT 5,
+  `timeout_ms` int(11) NOT NULL DEFAULT 3000,
+  `habilitado` tinyint(1) NOT NULL DEFAULT 1,
+  `por_defecto` tinyint(1) NOT NULL DEFAULT 0,
+  `notas` varchar(255) DEFAULT NULL,
+  `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cliente_nombre` (`cliente_id`,`nombre`),
+  KEY `idx_cliente_dominio` (`cliente_id`,`dominio_tag`),
+  KEY `idx_proveedor` (`proveedor`),
+  CONSTRAINT `fk_rag_cartucho_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- La exportación de datos fue deseleccionada.
+
+-- Volcando estructura para tabla kinocsmy_intelichat.cfg_rag_politica
+CREATE TABLE IF NOT EXISTS `cfg_rag_politica` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `agente_id` bigint(20) NOT NULL,
+  `cliente_id` bigint(20) NOT NULL,
+  `dominios_allow` longtext DEFAULT NULL,
+  `intenciones_allow` longtext DEFAULT NULL,
+  `confianza_min` decimal(3,2) DEFAULT NULL,
+  `latencia_max_ms` int(11) DEFAULT NULL,
+  `fallback_limite` tinyint(4) DEFAULT 1,
+  `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_agente_cliente` (`agente_id`,`cliente_id`),
+  KEY `fk_rpol_cliente` (`cliente_id`),
+  CONSTRAINT `fk_rpol_agente` FOREIGN KEY (`agente_id`) REFERENCES `cfg_agente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_rpol_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- La exportación de datos fue deseleccionada.
+
 -- Volcando estructura para tabla kinocsmy_intelichat.cfg_storage_provider
 CREATE TABLE IF NOT EXISTS `cfg_storage_provider` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
@@ -449,7 +517,7 @@ CREATE TABLE IF NOT EXISTS `chat_sesion` (
   KEY `idx_sesion_chatbot` (`chatbot_id`),
   CONSTRAINT `fk_sesion_chatbot` FOREIGN KEY (`chatbot_id`) REFERENCES `cfg_chatbot` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_sesion_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=190 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=226 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -486,7 +554,7 @@ CREATE TABLE IF NOT EXISTS `ejec_chat` (
   KEY `fk_ejec_chat_cliente` (`cliente_id`),
   CONSTRAINT `fk_ejec_chat_chatbot` FOREIGN KEY (`chatbot_id`) REFERENCES `cfg_chatbot` (`id`),
   CONSTRAINT `fk_ejec_chat_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=386 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=461 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -562,7 +630,56 @@ CREATE TABLE IF NOT EXISTS `ejec_mensaje` (
   PRIMARY KEY (`id`),
   KEY `ix_ejec_msg_chat_created` (`chat_id`,`created_at`),
   CONSTRAINT `fk_ejec_msg_chat` FOREIGN KEY (`chat_id`) REFERENCES `ejec_chat` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2654 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2978 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- La exportación de datos fue deseleccionada.
+
+-- Volcando estructura para tabla kinocsmy_intelichat.ejec_rag_chunk
+CREATE TABLE IF NOT EXISTS `ejec_rag_chunk` (
+  `uso_id` bigint(20) NOT NULL,
+  `orden_rank` int(11) NOT NULL,
+  `source_id` varchar(160) NOT NULL,
+  `source_uri` varchar(255) DEFAULT NULL,
+  `score` decimal(6,4) DEFAULT NULL,
+  `snippet` text DEFAULT NULL,
+  `metadata` longtext DEFAULT NULL,
+  PRIMARY KEY (`uso_id`,`orden_rank`),
+  KEY `idx_source` (`source_id`),
+  CONSTRAINT `fk_rchunk_uso` FOREIGN KEY (`uso_id`) REFERENCES `ejec_rag_uso` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- La exportación de datos fue deseleccionada.
+
+-- Volcando estructura para tabla kinocsmy_intelichat.ejec_rag_uso
+CREATE TABLE IF NOT EXISTS `ejec_rag_uso` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `cliente_id` bigint(20) NOT NULL,
+  `chat_id` bigint(20) NOT NULL,
+  `mensaje_id` bigint(20) NOT NULL,
+  `agente_id` bigint(20) NOT NULL,
+  `cartucho_id` bigint(20) DEFAULT NULL,
+  `decision` enum('used','skipped','fallback','error') NOT NULL,
+  `razon_decision` varchar(200) NOT NULL,
+  `query_text` text DEFAULT NULL,
+  `top_k` int(11) DEFAULT NULL,
+  `hybrid` tinyint(1) DEFAULT NULL,
+  `rerank` tinyint(1) DEFAULT NULL,
+  `latencia_ms` int(11) DEFAULT NULL,
+  `error_code` varchar(80) DEFAULT NULL,
+  `creado_en` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_chat_mensaje` (`cliente_id`,`chat_id`,`mensaje_id`),
+  KEY `idx_agente_time` (`agente_id`,`creado_en`),
+  KEY `idx_decision` (`decision`),
+  KEY `fk_ruso_cartucho` (`cartucho_id`),
+  KEY `fk_ruso_mensaje` (`mensaje_id`),
+  KEY `fk_ruso_chat` (`chat_id`),
+  CONSTRAINT `fk_ruso_agente` FOREIGN KEY (`agente_id`) REFERENCES `cfg_agente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_ruso_cartucho` FOREIGN KEY (`cartucho_id`) REFERENCES `cfg_rag_cartucho` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_ruso_chat` FOREIGN KEY (`chat_id`) REFERENCES `ejec_chat` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_ruso_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cfg_cliente` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_ruso_mensaje` FOREIGN KEY (`mensaje_id`) REFERENCES `ejec_mensaje` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- La exportación de datos fue deseleccionada.
 

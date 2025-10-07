@@ -55,6 +55,13 @@ class Seeder {
         is_active: true
       },
       {
+        name: 'openrouter',
+        display_name: 'OpenRouter',
+        description: 'OpenRouter unified API for multiple LLM providers',
+        base_url: 'https://openrouter.ai/api/v1',
+        is_active: true
+      },
+      {
         name: 'anthropic',
         display_name: 'Anthropic',
         description: 'Anthropic Claude models provider',

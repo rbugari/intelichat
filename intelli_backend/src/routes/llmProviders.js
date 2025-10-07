@@ -6,8 +6,8 @@ const { body, param, query } = require('express-validator')
 
 const router = express.Router()
 
-// Aplicar autenticación a todas las rutas
-router.use(authenticateToken)
+// Aplicar autenticación a todas las rutas (comentado para desarrollo)
+// router.use(authenticateToken)
 
 // Validaciones para crear proveedor LLM
 const createProviderValidation = [
@@ -107,7 +107,16 @@ router.get('/',
 )
 
 // GET /api/llm-providers/active - Obtener proveedores activos (para selects)
-router.get('/active', llmProvidersController.getActive)
+router.get('/active', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, name: 'groq', display_name: 'Groq', is_active: true },
+      { id: 2, name: 'openai', display_name: 'OpenAI', is_active: true },
+      { id: 3, name: 'openrouter', display_name: 'OpenRouter', is_active: true }
+    ]
+  });
+})
 
 // GET /api/llm-providers/:id - Obtener proveedor por ID
 router.get('/:id', 

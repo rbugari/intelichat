@@ -9,10 +9,26 @@ class EditorController {
   async getConfig(req, res) {
     try {
       // DEBUG: Log the environment variable value as seen by the server
-      console.log('🔍 DEBUG [EditorConfig]: Reading OPENAI_MODEL from .env. Value:', process.env.OPENAI_MODEL);
+      console.log(`🔍 DEBUG [EditorConfig]: LLM_PROVIDER is set to: ${process.env.LLM_PROVIDER}`);
+
+      const getEditorModelName = () => {
+        const provider = process.env.LLM_PROVIDER || 'openai';
+        switch (provider) {
+          case 'openrouter':
+            return process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+          case 'groq':
+            return process.env.GROQ_MODEL || 'llama3-70b-8192';
+          case 'openai':
+          default:
+            return process.env.OPENAI_MODEL || 'gpt-4-turbo';
+        }
+      };
+
+      const modelName = getEditorModelName();
+      console.log(`🔍 DEBUG [EditorConfig]: Determined editor model is: ${modelName}`);
 
       const config = {
-        modelName: process.env.OPENAI_MODEL || 'gpt-4-turbo',
+        modelName: modelName,
       };
       res.json({ success: true, data: config });
     } catch (error) {

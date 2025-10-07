@@ -1131,11 +1131,12 @@ class AgentsController {
           rc.proveedor,
           rc.indice_nombre,
           rc.habilitado as activo,
+          rc.por_defecto,
           arc.creado_en as associated_at
         FROM cfg_rag_cartucho rc
         INNER JOIN cfg_agente_rag_cartucho arc ON rc.id = arc.cartucho_id
         WHERE arc.agente_id = ?
-        ORDER BY rc.nombre ASC
+        ORDER BY rc.por_defecto DESC, rc.nombre ASC
       `;
       
       const ragCartridges = await database.query(query, [id]);

@@ -7,6 +7,7 @@ const formsRoutes = require('./forms');
 const authSimpleRoutes = require('./auth_simple');
 const toolsProxyRoutes = require('./tools_proxy'); // <-- AÑADIDO
 const sttRoutes = require('./stt'); // <-- AÑADIDO PARA STT
+const llmProvidersRoutes = require('./llmProviders'); // <-- AÑADIDO PARA LLM PROVIDERS
 const { requestLogger } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -38,6 +39,7 @@ router.use('/editor', editorRoutes);
 router.use('/forms', formsRoutes);
 router.use('/auth-simple', authSimpleRoutes);
 router.use('/stt', sttRoutes); // <-- AÑADIDO PARA STT
+router.use('/llm-providers', llmProvidersRoutes); // <-- AÑADIDO PARA LLM PROVIDERS
 
 // Registrar las rutas de las herramientas genéricas bajo el prefijo /api
 // La petición desde el servicio será a /api/weather, por lo tanto aquí solo registramos la base

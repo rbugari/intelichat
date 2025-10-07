@@ -1,26 +1,118 @@
 const db = require('../database');
 const { OpenAI } = require('openai');
+const Groq = require('groq-sdk');
 const fs = require('fs').promises;
 const path = require('path');
 
 /**
- * Generic function to call the LLM API directly.
+ * Generic function to call the LLM API directly, respecting the configured provider.
  * @param {string} metaPrompt - The complete prompt to send to the LLM.
  * @returns {Promise<string>} - The LLM's raw string response.
  */
 async function callLlm(metaPrompt) {
+    const provider = process.env.LLM_PROVIDER || 'openai';
+    let client;
+    let model;
+    let requestOptions;
+
     try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        const response = await openai.chat.completions.create({
-            model: process.env.OPENAI_MODEL || "gpt-4-turbo",
-            messages: [{ role: "user", content: metaPrompt }],
-            max_completion_tokens: 4000, // Increased token limit for potentially large reports
-            response_format: { type: "json_object" }, // Ensure the output is a JSON object
-        });
-        return response.choices[0].message.content;
+        switch (provider) {
+            case 'openrouter':
+                if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set');
+                client = new OpenAI({
+                    apiKey: process.env.OPENROUTER_API_KEY,
+                    baseURL: 'https://openrouter.ai/api/v1',
+                    defaultHeaders: {
+                        'HTTP-Referer': process.env.OPENROUTER_REFERRER || 'http://localhost:3000',
+                        'X-Title': process.env.OPENROUTER_X_TITLE || 'InteliChat Validation'
+                    }
+                });
+                model = process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+                requestOptions = {
+                    model: model,
+                    messages: [{ role: "user", content: metaPrompt }],
+                    max_tokens: 4000,
+                    response_format: { type: "json_object" },
+                };
+                break;
+
+            case 'groq':
+                if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set');
+                client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+                model = process.env.GROQ_MODEL || 'llama3-70b-8192';
+                requestOptions = {
+                    model: model,
+                    messages: [{ role: "user", content: metaPrompt }],
+                    max_tokens: 4000,
+                    response_format: { type: "json_object" },
+                };
+                break;
+
+            case 'openai':
+            default:
+                if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
+                client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+                model = process.env.OPENAI_MODEL || 'gpt-4-turbo';
+                requestOptions = {
+                    model: model,
+                    messages: [{ role: "user", content: metaPrompt }],
+                    max_tokens: 4000,
+                    response_format: { type: "json_object" },
+                };
+                break;
+        }
+
+        const response = await client.chat.completions.create(requestOptions);
+        let rawResponse = response.choices[0].message.content;
+        
+        // Limpiar la respuesta para asegurar que sea JSON válido
+        rawResponse = cleanLLMResponse(rawResponse);
+        
+        return rawResponse;
+
     } catch (error) {
-        console.error('[validationService.callLlm] Error during OpenAI API call:', error);
-        throw new Error('Failed to get response from LLM for validation.');
+        console.error(`[validationService.callLlm] Error during ${provider} API call:`, error);
+        throw new Error(`Failed to get response from LLM for validation using ${provider}.`);
+    }
+}
+
+/**
+ * Limpia y valida la respuesta del LLM para asegurar que sea JSON válido
+ * @param {string} rawResponse - La respuesta cruda del LLM
+ * @returns {string} - La respuesta limpia y válida
+ */
+function cleanLLMResponse(rawResponse) {
+    if (!rawResponse || typeof rawResponse !== 'string') {
+        throw new Error('La respuesta del LLM está vacía o no es una cadena de texto');
+    }
+
+    // Remover posibles caracteres de markdown o texto adicional
+    let cleaned = rawResponse.trim();
+    
+    // Si la respuesta está envuelta en bloques de código, extraer el JSON
+    if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Buscar el primer { y el último } para extraer solo el JSON
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+    }
+    
+    // Validar que sea JSON válido
+    try {
+        JSON.parse(cleaned);
+        return cleaned;
+    } catch (parseError) {
+        console.error('Error parsing cleaned LLM response:', parseError);
+        console.error('Cleaned response:', cleaned);
+        console.error('Original response:', rawResponse);
+        throw new Error('La respuesta del LLM no contiene JSON válido después de la limpieza');
     }
 }
 
@@ -54,8 +146,59 @@ async function validateAgent(agentId, currentPrompt) {
     } catch (parseError) {
         console.error('Error parsing LLM response as JSON:', parseError);
         console.error('Raw LLM response string:', llmResponseString);
-        throw new Error('La respuesta del LLM no es un JSON válido.');
+        
+        // Intentar una limpieza adicional como último recurso
+        try {
+            const cleanedResponse = cleanLLMResponse(llmResponseString);
+            llmResponse = JSON.parse(cleanedResponse);
+            console.log('Successfully parsed after additional cleaning');
+        } catch (secondParseError) {
+            console.error('Failed to parse even after cleaning:', secondParseError);
+            throw new Error('La respuesta del LLM no es un JSON válido y no se pudo corregir automáticamente.');
+        }
     }
+
+    // Validar estructura mínima requerida
+    if (!llmResponse || typeof llmResponse !== 'object') {
+        throw new Error('La respuesta del LLM no es un objeto JSON válido.');
+    }
+
+    // Verificar que tenga la estructura básica esperada
+    if (!llmResponse.summary || !llmResponse.details) {
+        console.error('La respuesta del LLM no tiene la estructura esperada:', llmResponse);
+        
+        // Crear una estructura mínima si faltan campos críticos
+        if (!llmResponse.summary) {
+            llmResponse.summary = {
+                architecture: { success: [], warnings: [], errors: [] },
+                tools: { success: [], warnings: [], errors: [] },
+                handoffs: { success: [], warnings: [], errors: [] },
+                rag: { success: [], warnings: [], errors: [] },
+                forms: { success: [], warnings: [], errors: [] }
+            };
+        }
+        
+        if (!llmResponse.details) {
+            llmResponse.details = "No se pudo generar un análisis detallado debido a un error en la respuesta del LLM.";
+        }
+        
+        // Agregar campos faltantes si no existen
+        if (!llmResponse.agent_classification) {
+            llmResponse.agent_classification = "DESCONOCIDO";
+        }
+        
+        if (!llmResponse.validation_mode) {
+            llmResponse.validation_mode = "desconocida";
+        }
+    }
+
+    const translatedReport = translateLLMReport(llmResponse);
+    return {
+        agentId: agent.id,
+        agentName: agent.nombre,
+        lastValidation: new Date().toISOString(),
+        ...translatedReport
+    };
 
     if (typeof llmResponse === 'object' && llmResponse !== null && llmResponse.summary && llmResponse.details) {
         const translatedReport = translateLLMReport(llmResponse);
@@ -300,4 +443,5 @@ function buildContextualMetaPrompt(template, config, currentPrompt, agentName) {
 
 module.exports = {
     validateAgent,
+    getAgentConfiguration,
 };

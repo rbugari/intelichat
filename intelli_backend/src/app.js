@@ -5,10 +5,27 @@ if (dotenvResult.error) {
   console.error('❌ ERROR: Could not load .env file from root.', dotenvResult.error);
 } else {
   console.log('✅ SUCCESS: Loaded .env file from:', path.resolve(__dirname, '../../.env'));
-  // Optionally log a specific variable to confirm it's parsed
-  if (dotenvResult.parsed) {
-    console.log('🔍 DEBUG [dotenv]: Parsed OPENAI_MODEL:', dotenvResult.parsed.OPENAI_MODEL);
-  }
+  
+  const getEditorModelName = () => {
+    const provider = process.env.LLM_PROVIDER || 'openai';
+    switch (provider) {
+      case 'openrouter':
+        return process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+      case 'groq':
+        return process.env.GROQ_MODEL || 'llama3-70b-8192';
+      case 'openai':
+      default:
+        return process.env.OPENAI_MODEL || 'gpt-4-turbo';
+    }
+  };
+
+  const internalModel = getEditorModelName();
+  const internalProvider = process.env.LLM_PROVIDER || 'openai';
+
+  console.log('--------------------------------------------------------------------------');
+  console.log(`✅ INTERNAL LLM CONFIG: Provider for app tasks is '${internalProvider}'.`);
+  console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.`);
+  console.log('--------------------------------------------------------------------------');
 }
 
 const express = require('express');
@@ -518,7 +535,7 @@ setTimeout(() => {
 // Export the app and sessions for testing
 module.exports = { app, sessions };
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
   console.log(`🔗 Local: http://localhost:${PORT}`);
