@@ -121,3 +121,4 @@ kchat_base-master/
 # Archivos de configuración local
 config.local.js
 config.local.json
+.vercel

@@ -96,6 +96,7 @@ const corsOptions = {
             'https://intelichat-prompt-editor.vercel.app',
             'https://intelichat-cs8c1dejn-rbugaris-projects.vercel.app',
             'https://intelichat-cbneo27pi-rbugaris-projects.vercel.app',
+            'https://intelichat-4wxjxv1u4-rbugaris-projects.vercel.app',
             /\.vercel\.app$/,
             /rbugaris-projects\.vercel\.app$/
           ]
