@@ -88,62 +88,38 @@ Database.initialize().catch(error => {
     console.log('🚀 Railway Debug: Database connection error details:', error);
 });
 
-// Basic middleware - CORS FIRST
+// Basic middleware - CORS FIRST - TEMPORAL: COMPLETAMENTE PERMISIVO PARA DEBUG
 const corsOptions = {
-    origin: function (origin, callback) {
-        console.log('🔍 CORS DEBUG - Origin recibido:', origin);
-        console.log('🔍 CORS DEBUG - NODE_ENV:', process.env.NODE_ENV);
-        
-        // Permitir requests sin origin (como Postman, mobile apps, etc.)
-        if (!origin) {
-            console.log('✅ CORS: Permitiendo request sin origin');
-            return callback(null, true);
-        }
-
-        const allowedOrigins = process.env.NODE_ENV === 'production' 
-            ? [
-                'https://intelichat-frontend.vercel.app',
-                'https://intelichat-prompt-editor.vercel.app',
-                'https://intelichat-cs8c1dejn-rbugaris-projects.vercel.app',
-                'https://intelichat-cbneo27pi-rbugaris-projects.vercel.app',
-                'https://intelichat-4wxjxv1u4-rbugaris-projects.vercel.app',
-                'https://intelichat-five.vercel.app'
-              ]
-            : ['http://localhost:5001', 'http://localhost:5003', 'http://127.0.0.1:5001', 'http://127.0.0.1:5003'];
-
-        console.log('🔍 CORS DEBUG - Allowed origins:', allowedOrigins);
-
-        // Verificar si el origin está en la lista exacta
-        if (allowedOrigins.includes(origin)) {
-            console.log('✅ CORS: Origin permitido (lista exacta):', origin);
-            return callback(null, true);
-        }
-
-        // Verificar wildcards para producción
-        if (process.env.NODE_ENV === 'production') {
-            // Permitir cualquier subdominio de vercel.app
-            if (origin.endsWith('.vercel.app')) {
-                console.log('✅ CORS: Origin permitido (wildcard .vercel.app):', origin);
-                return callback(null, true);
-            }
-            
-            // Permitir específicamente rbugaris-projects.vercel.app
-            if (origin.includes('rbugaris-projects.vercel.app')) {
-                console.log('✅ CORS: Origin permitido (rbugaris-projects):', origin);
-                return callback(null, true);
-            }
-        }
-
-        console.log('❌ CORS: Origin NO permitido:', origin);
-        const err = new Error(`CORS policy violation: Origin ${origin} not allowed`);
-        err.status = 403;
-        callback(err);
-    },
+    origin: true, // TEMPORAL: Permitir TODOS los orígenes para debug
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    optionsSuccessStatus: 200 // Para compatibilidad con navegadores legacy
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    optionsSuccessStatus: 200,
+    preflightContinue: false
 };
+
+// Middleware de debug para CORS
+app.use((req, res, next) => {
+    console.log('🔍 CORS DEBUG - Request recibido:');
+    console.log('  - Origin:', req.get('Origin'));
+    console.log('  - Method:', req.method);
+    console.log('  - URL:', req.url);
+    console.log('  - User-Agent:', req.get('User-Agent'));
+    console.log('  - Headers:', JSON.stringify(req.headers, null, 2));
+    
+    // Interceptar la respuesta para ver qué headers se están enviando
+    const originalSend = res.send;
+    res.send = function(data) {
+        console.log('🔍 CORS DEBUG - Response headers enviados:');
+        console.log('  - Access-Control-Allow-Origin:', res.get('Access-Control-Allow-Origin'));
+        console.log('  - Access-Control-Allow-Credentials:', res.get('Access-Control-Allow-Credentials'));
+        console.log('  - Access-Control-Allow-Methods:', res.get('Access-Control-Allow-Methods'));
+        console.log('  - Access-Control-Allow-Headers:', res.get('Access-Control-Allow-Headers'));
+        return originalSend.call(this, data);
+    };
+    
+    next();
+});
 
 app.use(cors(corsOptions));
 
