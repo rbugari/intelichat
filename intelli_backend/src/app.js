@@ -90,17 +90,55 @@ Database.initialize().catch(error => {
 
 // Basic middleware - CORS FIRST
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-        ? [
-            'https://intelichat-frontend.vercel.app',
-            'https://intelichat-prompt-editor.vercel.app',
-            'https://intelichat-cs8c1dejn-rbugaris-projects.vercel.app',
-            'https://intelichat-cbneo27pi-rbugaris-projects.vercel.app',
-            'https://intelichat-4wxjxv1u4-rbugaris-projects.vercel.app',
-            /\.vercel\.app$/,
-            /rbugaris-projects\.vercel\.app$/
-          ]
-        : ['http://localhost:5001', 'http://localhost:5003', 'http://127.0.0.1:5001', 'http://127.0.0.1:5003'],
+    origin: function (origin, callback) {
+        console.log('🔍 CORS DEBUG - Origin recibido:', origin);
+        console.log('🔍 CORS DEBUG - NODE_ENV:', process.env.NODE_ENV);
+        
+        // Permitir requests sin origin (como Postman, mobile apps, etc.)
+        if (!origin) {
+            console.log('✅ CORS: Permitiendo request sin origin');
+            return callback(null, true);
+        }
+
+        const allowedOrigins = process.env.NODE_ENV === 'production' 
+            ? [
+                'https://intelichat-frontend.vercel.app',
+                'https://intelichat-prompt-editor.vercel.app',
+                'https://intelichat-cs8c1dejn-rbugaris-projects.vercel.app',
+                'https://intelichat-cbneo27pi-rbugaris-projects.vercel.app',
+                'https://intelichat-4wxjxv1u4-rbugaris-projects.vercel.app',
+                'https://intelichat-five.vercel.app'
+              ]
+            : ['http://localhost:5001', 'http://localhost:5003', 'http://127.0.0.1:5001', 'http://127.0.0.1:5003'];
+
+        console.log('🔍 CORS DEBUG - Allowed origins:', allowedOrigins);
+
+        // Verificar si el origin está en la lista exacta
+        if (allowedOrigins.includes(origin)) {
+            console.log('✅ CORS: Origin permitido (lista exacta):', origin);
+            return callback(null, true);
+        }
+
+        // Verificar wildcards para producción
+        if (process.env.NODE_ENV === 'production') {
+            // Permitir cualquier subdominio de vercel.app
+            if (origin.endsWith('.vercel.app')) {
+                console.log('✅ CORS: Origin permitido (wildcard .vercel.app):', origin);
+                return callback(null, true);
+            }
+            
+            // Permitir específicamente rbugaris-projects.vercel.app
+            if (origin.includes('rbugaris-projects.vercel.app')) {
+                console.log('✅ CORS: Origin permitido (rbugaris-projects):', origin);
+                return callback(null, true);
+            }
+        }
+
+        console.log('❌ CORS: Origin NO permitido:', origin);
+        const err = new Error(`CORS policy violation: Origin ${origin} not allowed`);
+        err.status = 403;
+        callback(err);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
