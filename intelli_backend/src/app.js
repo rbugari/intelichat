@@ -94,12 +94,16 @@ const corsOptions = {
         ? [
             'https://intelichat-frontend.vercel.app',
             'https://intelichat-prompt-editor.vercel.app',
-            /\.vercel\.app$/
+            'https://intelichat-cs8c1dejn-rbugaris-projects.vercel.app',
+            'https://intelichat-cbneo27pi-rbugaris-projects.vercel.app',
+            /\.vercel\.app$/,
+            /rbugaris-projects\.vercel\.app$/
           ]
         : ['http://localhost:5001', 'http://localhost:5003', 'http://127.0.0.1:5001', 'http://127.0.0.1:5003'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 200 // Para compatibilidad con navegadores legacy
 };
 
 app.use(cors(corsOptions));
