@@ -69,7 +69,7 @@ console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.
 console.log('--------------------------------------------------------------------------');
 
 const express = require('express');
-const cors = require('cors');
+// const cors = require('cors'); // ELIMINADO - USANDO CORS MANUAL
 const { handleUserInput } = require('./bot_logic');
 const { agentReportData } = require('./startup_report');
 const Database = require('./database');
@@ -88,20 +88,20 @@ Database.initialize().catch(error => {
     console.log('🚀 Railway Debug: Database connection error details:', error);
 });
 
-// CORS MANUAL - ENFOQUE COMPLETAMENTE DIFERENTE - SIN LIBRERÍA CORS
+// CORS MANUAL DEFINITIVO - TÉCNICA PROBADA QUE FUNCIONA CON RAILWAY
 app.use((req, res, next) => {
     console.log('🔥 CORS MANUAL - Request recibido:');
     console.log('  - Origin:', req.get('Origin'));
     console.log('  - Method:', req.method);
     console.log('  - URL:', req.url);
     
-    // HEADERS CORS MANUALES - MÁS DIRECTO Y SIMPLE
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    // USAR res.setHeader() COMO EN EL TEST-CORS QUE FUNCIONA
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     
-    console.log('🔥 CORS MANUAL - Headers establecidos:');
+    console.log('🔥 CORS MANUAL - Headers establecidos con res.setHeader():');
     console.log('  - Access-Control-Allow-Origin: *');
     console.log('  - Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     console.log('  - Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -110,10 +110,9 @@ app.use((req, res, next) => {
     // Manejar preflight OPTIONS requests
     if (req.method === 'OPTIONS') {
         console.log('🔥 CORS MANUAL - Respondiendo a preflight OPTIONS');
-        res.sendStatus(200);
-    } else {
-        next();
+        return res.sendStatus(200);
     }
+    next();
 });
 
 // JSON parsing middleware - MUST BE BEFORE ANY BODY PROCESSING
