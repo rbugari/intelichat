@@ -88,40 +88,33 @@ Database.initialize().catch(error => {
     console.log('🚀 Railway Debug: Database connection error details:', error);
 });
 
-// Basic middleware - CORS FIRST - TEMPORAL: COMPLETAMENTE PERMISIVO PARA DEBUG
-const corsOptions = {
-    origin: true, // TEMPORAL: Permitir TODOS los orígenes para debug
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    optionsSuccessStatus: 200,
-    preflightContinue: false
-};
-
-// Middleware de debug para CORS
+// CORS MANUAL - ENFOQUE COMPLETAMENTE DIFERENTE - SIN LIBRERÍA CORS
 app.use((req, res, next) => {
-    console.log('🔍 CORS DEBUG - Request recibido:');
+    console.log('🔥 CORS MANUAL - Request recibido:');
     console.log('  - Origin:', req.get('Origin'));
     console.log('  - Method:', req.method);
     console.log('  - URL:', req.url);
-    console.log('  - User-Agent:', req.get('User-Agent'));
-    console.log('  - Headers:', JSON.stringify(req.headers, null, 2));
     
-    // Interceptar la respuesta para ver qué headers se están enviando
-    const originalSend = res.send;
-    res.send = function(data) {
-        console.log('🔍 CORS DEBUG - Response headers enviados:');
-        console.log('  - Access-Control-Allow-Origin:', res.get('Access-Control-Allow-Origin'));
-        console.log('  - Access-Control-Allow-Credentials:', res.get('Access-Control-Allow-Credentials'));
-        console.log('  - Access-Control-Allow-Methods:', res.get('Access-Control-Allow-Methods'));
-        console.log('  - Access-Control-Allow-Headers:', res.get('Access-Control-Allow-Headers'));
-        return originalSend.call(this, data);
-    };
+    // HEADERS CORS MANUALES - MÁS DIRECTO Y SIMPLE
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
     
-    next();
+    console.log('🔥 CORS MANUAL - Headers establecidos:');
+    console.log('  - Access-Control-Allow-Origin: *');
+    console.log('  - Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    console.log('  - Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    console.log('  - Access-Control-Allow-Credentials: true');
+    
+    // Manejar preflight OPTIONS requests
+    if (req.method === 'OPTIONS') {
+        console.log('🔥 CORS MANUAL - Respondiendo a preflight OPTIONS');
+        res.sendStatus(200);
+    } else {
+        next();
+    }
 });
-
-app.use(cors(corsOptions));
 
 // JSON parsing middleware - MUST BE BEFORE ANY BODY PROCESSING
 app.use(express.json({ limit: '10mb' }));
