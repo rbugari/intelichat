@@ -140,6 +140,36 @@ app.get('/test-simple', (req, res) => {
     res.json({ message: 'Test endpoint works!', timestamp: new Date().toISOString() });
 });
 
+// ENDPOINT ESPECIAL PARA PROBAR CORS - BYPASS COMPLETO
+app.get('/api/test-cors', (req, res) => {
+    console.log('🔥 TEST-CORS: Request recibido desde:', req.get('Origin'));
+    console.log('🔥 TEST-CORS: Headers del request:', JSON.stringify(req.headers, null, 2));
+    
+    // ESTABLECER HEADERS CORS MANUALMENTE CON res.setHeader()
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    console.log('🔥 TEST-CORS: Headers CORS establecidos manualmente');
+    console.log('🔥 TEST-CORS: Access-Control-Allow-Origin: *');
+    
+    res.json({
+        message: 'CORS TEST ENDPOINT - Headers establecidos manualmente',
+        timestamp: new Date().toISOString(),
+        origin: req.get('Origin'),
+        userAgent: req.get('User-Agent'),
+        method: req.method,
+        headers: req.headers,
+        corsHeaders: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+            'Access-Control-Allow-Credentials': 'true'
+        }
+    });
+});
+
 // Endpoint temporal para debug/config (solución para frontend) - ANTES de las rutas API
 app.get('/debug/config', async (req, res) => {
     console.log('🔍 DEBUG: /debug/config endpoint hit!');
