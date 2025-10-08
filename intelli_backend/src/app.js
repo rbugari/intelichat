@@ -79,40 +79,97 @@ console.log(`🚀 Railway Debug: NODE_ENV=${process.env.NODE_ENV}`);
 console.log(`🚀 Railway Debug: PORT=${process.env.PORT}`);
 console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SET'}`);
 
+// DEBUG: Verificar variables CORS específicas
+console.log('🔍 CORS ENV VARS DEBUG:');
+console.log(`  - CORS_ORIGIN=${process.env.CORS_ORIGIN}`);
+console.log(`  - CORS_CREDENTIALS=${process.env.CORS_CREDENTIALS}`);
+console.log(`  - CORS_METHODS=${process.env.CORS_METHODS}`);
+console.log(`  - CORS_HEADERS=${process.env.CORS_HEADERS}`);
+console.log(`  - RAILWAY_CORS_ORIGIN=${process.env.RAILWAY_CORS_ORIGIN}`);
+console.log(`  - RAILWAY_CORS_CREDENTIALS=${process.env.RAILWAY_CORS_CREDENTIALS}`);
+console.log(`  - RAILWAY_CORS_METHODS=${process.env.RAILWAY_CORS_METHODS}`);
+console.log(`  - RAILWAY_CORS_HEADERS=${process.env.RAILWAY_CORS_HEADERS}`);
+
 const app = express();
 const sessions = new Map();
+
+// ===== CORS ULTRA-AGRESIVO PARA RAILWAY =====
+// DEBE SER EL PRIMER MIDDLEWARE - ANTES QUE CUALQUIER COSA DE RAILWAY
+console.log('🚨 IMPLEMENTANDO CORS ULTRA-AGRESIVO PARA RAILWAY');
+
+// Interceptar TODAS las respuestas antes que Railway pueda tocarlas
+app.use((req, res, next) => {
+    console.log('🔥 CORS ULTRA-AGRESIVO - Interceptando request:');
+    console.log('  - Origin:', req.get('Origin'));
+    console.log('  - Method:', req.method);
+    console.log('  - URL:', req.url);
+    console.log('  - User-Agent:', req.get('User-Agent'));
+    
+    // SOBRESCRIBIR MÉTODO writeHead PARA FORZAR HEADERS
+    const originalWriteHead = res.writeHead;
+    res.writeHead = function(statusCode, statusMessage, headers) {
+        console.log('🔥 CORS ULTRA-AGRESIVO - Interceptando writeHead()');
+        
+        // Forzar headers CORS sin importar lo que Railway haga
+        this.setHeader('Access-Control-Allow-Origin', '*');
+        this.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        this.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
+        this.setHeader('Access-Control-Allow-Credentials', 'true');
+        this.setHeader('Access-Control-Max-Age', '86400');
+        
+        // Remover headers problemáticos de Railway si existen
+        this.removeHeader('Access-Control-Allow-Origin');
+        this.setHeader('Access-Control-Allow-Origin', '*');
+        
+        console.log('🔥 CORS ULTRA-AGRESIVO - Headers forzados en writeHead');
+        
+        return originalWriteHead.call(this, statusCode, statusMessage, headers);
+    };
+    
+    // TAMBIÉN interceptar setHeader para prevenir sobrescritura
+    const originalSetHeader = res.setHeader;
+    res.setHeader = function(name, value) {
+        if (name.toLowerCase().startsWith('access-control-')) {
+            console.log(`🔥 CORS ULTRA-AGRESIVO - Interceptando setHeader: ${name} = ${value}`);
+            
+            // Forzar nuestros valores para headers CORS
+            if (name.toLowerCase() === 'access-control-allow-origin') {
+                value = '*';
+            } else if (name.toLowerCase() === 'access-control-allow-credentials') {
+                value = 'true';
+            } else if (name.toLowerCase() === 'access-control-allow-methods') {
+                value = 'GET, POST, PUT, DELETE, OPTIONS, PATCH';
+            } else if (name.toLowerCase() === 'access-control-allow-headers') {
+                value = 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token';
+            }
+            
+            console.log(`🔥 CORS ULTRA-AGRESIVO - Header forzado: ${name} = ${value}`);
+        }
+        
+        return originalSetHeader.call(this, name, value);
+    };
+    
+    // Establecer headers inmediatamente
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    
+    // Manejar preflight OPTIONS inmediatamente
+    if (req.method === 'OPTIONS') {
+        console.log('🔥 CORS ULTRA-AGRESIVO - Respondiendo a preflight OPTIONS inmediatamente');
+        res.status(200).end();
+        return;
+    }
+    
+    next();
+});
 
 // Initialize database connection (with fallback)
 Database.initialize().catch(error => {
     console.warn('⚠️ Database connection failed, running in degraded mode:', error.message);
     console.log('🚀 Railway Debug: Database connection error details:', error);
-});
-
-// CORS MANUAL DEFINITIVO - TÉCNICA PROBADA QUE FUNCIONA CON RAILWAY
-app.use((req, res, next) => {
-    console.log('🔥 CORS MANUAL - Request recibido:');
-    console.log('  - Origin:', req.get('Origin'));
-    console.log('  - Method:', req.method);
-    console.log('  - URL:', req.url);
-    
-    // USAR res.setHeader() COMO EN EL TEST-CORS QUE FUNCIONA
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    console.log('🔥 CORS MANUAL - Headers establecidos con res.setHeader():');
-    console.log('  - Access-Control-Allow-Origin: *');
-    console.log('  - Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    console.log('  - Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    console.log('  - Access-Control-Allow-Credentials: true');
-    
-    // Manejar preflight OPTIONS requests
-    if (req.method === 'OPTIONS') {
-        console.log('🔥 CORS MANUAL - Respondiendo a preflight OPTIONS');
-        return res.sendStatus(200);
-    }
-    next();
 });
 
 // JSON parsing middleware - MUST BE BEFORE ANY BODY PROCESSING
