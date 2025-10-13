@@ -74,10 +74,7 @@ const { agentReportData } = require('./startup_report');
 const Database = require('./database');
 const cors = require('cors');
 
-console.log("DEBUG: app.js - Script started."); // DEBUG LOG
-console.log(`🚀 Railway Debug: NODE_ENV=${process.env.NODE_ENV}`);
-console.log(`🚀 Railway Debug: PORT=${process.env.PORT}`);
-console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SET'}`);
+
 
 const app = express();
 
@@ -116,37 +113,19 @@ app.use(express.json({ limit: '10mb' }));
 // URL encoded parsing middleware
 app.use(express.urlencoded({ extended: true }));
 
-// Debug middleware AFTER JSON parsing
-app.use((req, res, next) => {
-    console.log('🚨 IMMEDIATE DEBUG: Request received!', req.method, req.url);
-    console.log('🚨 DEBUG: Processed Request Body:', req.body);
-    console.log('🔥 MIDDLEWARE HIT!');
-    console.log('🔥 METHOD:', req.method);
-    console.log('🔥 URL:', req.originalUrl);
-    next();
-});
+
 
 // Import and register chat routes AFTER middleware setup (PRD 1.5)
 // Chat routes (real database)
 // Endpoint de prueba simple
 app.get('/test-simple', (req, res) => {
-    console.log('🔍 DEBUG: /test-simple endpoint hit!');
+
     res.json({ message: 'Test endpoint works!', timestamp: new Date().toISOString() });
 });
 
 // ENDPOINT ESPECIAL PARA PROBAR CORS - BYPASS COMPLETO
 app.get('/api/test-cors', (req, res) => {
-    console.log('🔥 TEST-CORS: Request recibido desde:', req.get('Origin'));
-    console.log('🔥 TEST-CORS: Headers del request:', JSON.stringify(req.headers, null, 2));
-    
-    // ESTABLECER HEADERS CORS MANUALMENTE CON res.setHeader()
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    console.log('🔥 TEST-CORS: Headers CORS establecidos manualmente');
-    console.log('🔥 TEST-CORS: Access-Control-Allow-Origin: *');
+
     
     res.json({
         message: 'CORS TEST ENDPOINT - Headers establecidos manualmente',
@@ -166,9 +145,7 @@ app.get('/api/test-cors', (req, res) => {
 
 // Endpoint temporal para debug/config (solución para frontend) - ANTES de las rutas API
 app.get('/debug/config', async (req, res) => {
-    console.log('🔍 DEBUG: /debug/config endpoint hit!');
-    try {
-        console.log('🔍 DEBUG: Querying database...');
+
         const clientes = await Database.query('SELECT * FROM cfg_cliente WHERE is_active = 1');
         const chatbots = await Database.query('SELECT * FROM cfg_chatbot WHERE is_active = 1');
         const agentes = await Database.query('SELECT * FROM cfg_agente WHERE is_active = 1');
@@ -191,20 +168,17 @@ app.get('/debug/config', async (req, res) => {
 });
 
 const chatRoutes = require('./routes/chat');
-console.log('🚀 About to register chat routes...');
-app.use('/api/chat', chatRoutes);
-console.log('🚀 Chat routes registered successfully!');
+
 
 // Register form routes
 const formRoutes = require('./routes/forms');
 app.use('/api/forms', formRoutes);
-console.log('🚀 Form routes registered successfully!');
-console.log('🚀 App router stack length after registration:', app._router ? app._router.stack.length : 'No router');
+
 
 // Register API routes
 const apiRoutes = require('./routes/index');
 app.use('/api', apiRoutes);
-console.log('🚀 API: API routes registered successfully!');
+
 
 
 // Frontend-compatible chat endpoint
@@ -212,21 +186,13 @@ console.log('🚀 API: API routes registered successfully!');
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
-    console.log("🚀 Railway Debug: /health endpoint hit from:", req.get('User-Agent')); // DEBUG LOG
-    console.log("🚀 Railway Debug: Health check starting...");
-    
     try {
-        // Verificar estado de la base de datos
         const dbConnected = await Database.healthCheck();
-        console.log("🚀 Railway Debug: Database health check result:", dbConnected);
-        
-        // Si se solicita configuración, incluirla en la respuesta
         const includeConfig = req.query.config === 'true';
         let configData = {};
         
         if (includeConfig) {
             try {
-                console.log('🔍 DEBUG: Including config data in health response');
                 const clientes = await Database.query('SELECT * FROM cfg_cliente WHERE is_active = 1');
                 const chatbots = await Database.query('SELECT * FROM cfg_chatbot WHERE is_active = 1');
                 const agentes = await Database.query('SELECT * FROM cfg_agente WHERE is_active = 1');
@@ -237,7 +203,7 @@ app.get('/health', async (req, res) => {
                     agentes
                 };
             } catch (error) {
-                console.error('🔍 DEBUG: Error getting config data:', error);
+                console.error('Error getting config data:', error);
                 configData = { error: error.message };
             }
         }
@@ -252,11 +218,9 @@ app.get('/health', async (req, res) => {
             ...(includeConfig && { config: configData })
         };
         
-        console.log("🚀 Railway Debug: Health response:", JSON.stringify(healthResponse, null, 2));
         res.status(200).json(healthResponse);
-        console.log("🚀 Railway Debug: /health endpoint response sent successfully");
     } catch (error) {
-        console.error("🚀 Railway Debug: Health check error:", error);
+        console.error("Health check error:", error);
         res.status(500).json({
             status: 'error',
             message: 'Health check failed',
@@ -269,7 +233,6 @@ app.get('/health', async (req, res) => {
 
 
 app.get('/status', (req, res) => {
-    console.log("DEBUG: app.js - /status endpoint hit."); // DEBUG LOG
     const isMock = process.env.MOCK_API === 'true';
     const mode = isMock ? 'MOCK (MOCK)' : 'ON-LINE';
 
@@ -285,7 +248,6 @@ app.get('/status', (req, res) => {
             tools: agent.tools
         }))
     });
-    console.log("DEBUG: app.js - /status endpoint response sent."); // DEBUG LOG
 });
 
 // Endpoint para obtener información del sistema desde la BD real
@@ -415,7 +377,6 @@ app.get('/api/chatbots', async (req, res) => {
 app.get('/api/agentes/:chatbotId', async (req, res) => {
   try {
     const { chatbotId } = req.params;
-    console.log('🔍 Getting agents for chatbot:', chatbotId);
     
     const agentes = await Database.query(`
       SELECT 
@@ -429,8 +390,6 @@ app.get('/api/agentes/:chatbotId', async (req, res) => {
       WHERE a.chatbot_id = ? AND a.is_active = 1
       ORDER BY a.orden ASC
     `, [chatbotId]);
-    
-    console.log('🔍 Found agents:', agentes);
     
     // Devolver en el formato esperado por el frontend
     res.json({
@@ -563,7 +522,6 @@ app.get('/api/debug/config', async (req, res) => {
 
 // Legacy system info endpoint (keep for compatibility)
 app.get('/system-info', async (req, res) => {
-    console.log("DEBUG: app.js - /system-info endpoint hit (legacy)."); // DEBUG LOG
     try {
         // Get cliente info
         const clienteRows = await Database.query('SELECT * FROM cliente WHERE id = 1');
@@ -597,7 +555,6 @@ app.get('/system-info', async (req, res) => {
             herramientas: herramientasRows
         });
         
-        console.log("DEBUG: app.js - /system-info endpoint response sent."); // DEBUG LOG
     } catch (error) {
         console.error('DEBUG: app.js - Error in /system-info:', error);
         res.status(500).json({ error: 'Error retrieving system information' });
@@ -605,41 +562,10 @@ app.get('/system-info', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    console.log("DEBUG: app.js - / endpoint hit."); // DEBUG LOG
     res.send('Kargho Chatbot Backend is running!');
 });
 
-// Log all registered routes for debugging
-setTimeout(() => {
-    console.log('🗺️ REGISTERED ROUTES:');
-    console.log('🔍 Router stack length:', app._router ? app._router.stack.length : 'No router');
-    if (app._router && app._router.stack) {
-        app._router.stack.forEach((middleware, index) => {
-            console.log(`🔍 Middleware ${index}:`, {
-                name: middleware.name,
-                hasRoute: !!middleware.route,
-                hasHandle: !!middleware.handle,
-                regexp: middleware.regexp ? middleware.regexp.source : 'No regexp'
-            });
-            
-            if (middleware.route) {
-                console.log(`  ✅ ROUTE: ${Object.keys(middleware.route.methods).join(',').toUpperCase()} ${middleware.route.path}`);
-            } else if (middleware.name === 'router' && middleware.handle && middleware.handle.stack) {
-                console.log(`  🔍 Router has ${middleware.handle.stack.length} handlers`);
-                middleware.handle.stack.forEach((handler, handlerIndex) => {
-                    console.log(`    🔍 Handler ${handlerIndex}:`, {
-                        hasRoute: !!handler.route,
-                        path: handler.route ? handler.route.path : 'No path'
-                    });
-                    if (handler.route) {
-                        console.log(`    ✅ SUBROUTE: ${Object.keys(handler.route.methods).join(',').toUpperCase()} /chat${handler.route.path}`);
-                    }
-                });
-            }
-        });
-    }
-    console.log('🗺️ END ROUTES LIST');
-}, 100);
+
 
 // Export the app and sessions for testing
 module.exports = { app, sessions };
