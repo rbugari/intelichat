@@ -29,10 +29,11 @@ jobs:
         npm ci
         
     - name: Deploy to Railway
-      uses: railway-deploy/railway-deploy@v3
-      with:
-        railway_token: ${{ secrets.RAILWAY_TOKEN }}
-        service: ${{ secrets.RAILWAY_SERVICE_ID }}
+      working-directory: ./intelli_backend
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        npx -y @railway/cli up --service ${{ secrets.RAILWAY_SERVICE_ID }}
         
   deploy-frontend:
     name: Deploy Frontend to Vercel
