@@ -72,6 +72,7 @@ const express = require('express');
 const { handleUserInput } = require('./bot_logic');
 const { agentReportData } = require('./startup_report');
 const Database = require('./database');
+const cors = require('cors');
 
 console.log("DEBUG: app.js - Script started."); // DEBUG LOG
 console.log(`🚀 Railway Debug: NODE_ENV=${process.env.NODE_ENV}`);
@@ -79,9 +80,28 @@ console.log(`🚀 Railway Debug: PORT=${process.env.PORT}`);
 console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SET'}`);
 
 const app = express();
-const sessions = new Map();
 
-// CORS MANEJADO POR RAILWAY A TRAVÉS DE VARIABLES DE ENTORNO
+// ===== Configuración de CORS Estándar =====
+const allowedOrigins = [
+  'https://intelichat-five.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500'
+];
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable pre-flight for all routes
+
+const sessions = new Map();
 
 
 // Initialize database connection (with fallback)
