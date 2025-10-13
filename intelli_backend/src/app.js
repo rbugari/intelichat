@@ -69,7 +69,7 @@ console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.
 console.log('--------------------------------------------------------------------------');
 
 const express = require('express');
-// const cors = require('cors'); // ELIMINADO - USANDO CORS MANUAL
+const cors = require('cors');
 const { handleUserInput } = require('./bot_logic');
 const { agentReportData } = require('./startup_report');
 const Database = require('./database');
@@ -79,92 +79,37 @@ console.log(`🚀 Railway Debug: NODE_ENV=${process.env.NODE_ENV}`);
 console.log(`🚀 Railway Debug: PORT=${process.env.PORT}`);
 console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SET'}`);
 
-// DEBUG: Verificar variables CORS específicas
-console.log('🔍 CORS ENV VARS DEBUG:');
-console.log(`  - CORS_ORIGIN=${process.env.CORS_ORIGIN}`);
-console.log(`  - CORS_CREDENTIALS=${process.env.CORS_CREDENTIALS}`);
-console.log(`  - CORS_METHODS=${process.env.CORS_METHODS}`);
-console.log(`  - CORS_HEADERS=${process.env.CORS_HEADERS}`);
-console.log(`  - RAILWAY_CORS_ORIGIN=${process.env.RAILWAY_CORS_ORIGIN}`);
-console.log(`  - RAILWAY_CORS_CREDENTIALS=${process.env.RAILWAY_CORS_CREDENTIALS}`);
-console.log(`  - RAILWAY_CORS_METHODS=${process.env.RAILWAY_CORS_METHODS}`);
-console.log(`  - RAILWAY_CORS_HEADERS=${process.env.RAILWAY_CORS_HEADERS}`);
-
 const app = express();
 const sessions = new Map();
 
-// ===== CORS ULTRA-AGRESIVO PARA RAILWAY =====
-// DEBE SER EL PRIMER MIDDLEWARE - ANTES QUE CUALQUIER COSA DE RAILWAY
-console.log('🚨 IMPLEMENTANDO CORS ULTRA-AGRESIVO PARA RAILWAY');
+// ===== Configuración de CORS Estándar =====
+const allowedOrigins = [
+  'https://intelichat-five.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500'
+];
 
-// Interceptar TODAS las respuestas antes que Railway pueda tocarlas
-app.use((req, res, next) => {
-    console.log('🔥 CORS ULTRA-AGRESIVO - Interceptando request:');
-    console.log('  - Origin:', req.get('Origin'));
-    console.log('  - Method:', req.method);
-    console.log('  - URL:', req.url);
-    console.log('  - User-Agent:', req.get('User-Agent'));
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permitir solicitudes sin 'origin' (como Postman o apps móviles)
+    if (!origin) return callback(null, true);
     
-    // SOBRESCRIBIR MÉTODO writeHead PARA FORZAR HEADERS
-    const originalWriteHead = res.writeHead;
-    res.writeHead = function(statusCode, statusMessage, headers) {
-        console.log('🔥 CORS ULTRA-AGRESIVO - Interceptando writeHead()');
-        
-        // Forzar headers CORS sin importar lo que Railway haga
-        this.setHeader('Access-Control-Allow-Origin', '*');
-        this.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-        this.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
-        this.setHeader('Access-Control-Allow-Credentials', 'true');
-        this.setHeader('Access-Control-Max-Age', '86400');
-        
-        // Remover headers problemáticos de Railway si existen
-        this.removeHeader('Access-Control-Allow-Origin');
-        this.setHeader('Access-Control-Allow-Origin', '*');
-        
-        console.log('🔥 CORS ULTRA-AGRESIVO - Headers forzados en writeHead');
-        
-        return originalWriteHead.call(this, statusCode, statusMessage, headers);
-    };
-    
-    // TAMBIÉN interceptar setHeader para prevenir sobrescritura
-    const originalSetHeader = res.setHeader;
-    res.setHeader = function(name, value) {
-        if (name.toLowerCase().startsWith('access-control-')) {
-            console.log(`🔥 CORS ULTRA-AGRESIVO - Interceptando setHeader: ${name} = ${value}`);
-            
-            // Forzar nuestros valores para headers CORS
-            if (name.toLowerCase() === 'access-control-allow-origin') {
-                value = '*';
-            } else if (name.toLowerCase() === 'access-control-allow-credentials') {
-                value = 'true';
-            } else if (name.toLowerCase() === 'access-control-allow-methods') {
-                value = 'GET, POST, PUT, DELETE, OPTIONS, PATCH';
-            } else if (name.toLowerCase() === 'access-control-allow-headers') {
-                value = 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token';
-            }
-            
-            console.log(`🔥 CORS ULTRA-AGRESIVO - Header forzado: ${name} = ${value}`);
-        }
-        
-        return originalSetHeader.call(this, name, value);
-    };
-    
-    // Establecer headers inmediatamente
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400');
-    
-    // Manejar preflight OPTIONS inmediatamente
-    if (req.method === 'OPTIONS') {
-        console.log('🔥 CORS ULTRA-AGRESIVO - Respondiendo a preflight OPTIONS inmediatamente');
-        res.status(200).end();
-        return;
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-    
-    next();
-});
+  },
+  credentials: true,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+};
+
+app.use(cors(corsOptions));
+
+// Responder a las solicitudes OPTIONS de preflight
+app.options('*', cors(corsOptions));
 
 // Initialize database connection (with fallback)
 Database.initialize().catch(error => {
