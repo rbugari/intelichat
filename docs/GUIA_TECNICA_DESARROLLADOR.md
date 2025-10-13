@@ -48,6 +48,17 @@ graph TD
 
 - **Backend Agnóstico a la Configuración:** El sistema es ahora aún más agnóstico. El código no sabe qué es la herramienta `findByDotEmail`, solo sabe qué hacer cuando un agente declara la intención `call_tool`. La lógica de qué herramientas puede usar cada agente reside 100% en la base de datos.
 
+### Estrategia de Ramas y Despliegue
+
+Para gestionar el ciclo de vida del desarrollo y despliegue, se utiliza la siguiente estrategia de ramas:
+
+*   **`main`**: Esta rama representa la versión de producción estable. Cualquier `push` a `main` disparará automáticamente el pipeline de CI/CD, desplegando el backend en Railway y el frontend en Vercel.
+*   **`dev`**: Esta es la rama principal de desarrollo. Todos los nuevos cambios y características deben implementarse en esta rama (o en ramas de características que luego se fusionen en `dev`). Los `push` a `dev` **no** disparan despliegues automáticos, permitiendo un entorno de trabajo seguro.
+
+### Configuración de CORS
+
+La configuración de CORS (Cross-Origin Resource Sharing) se gestiona en el archivo `intelli_backend/src/app.js`. Se utiliza la librería estándar `cors` para permitir el acceso desde orígenes específicos, incluyendo el frontend desplegado en Vercel (`https://intelichat-five.vercel.app`) y varios orígenes de `localhost` para el desarrollo local. Esto asegura que las comunicaciones entre el frontend y el backend funcionen correctamente tanto en desarrollo como en producción.
+
 ---
 
 ## 2. Análisis del Frontend (`chat-vanilla/index.html`)

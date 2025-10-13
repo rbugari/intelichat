@@ -12,6 +12,17 @@
 - **Validación Inteligente**: Sistema contextual de validación de prompts
 - **Arquitectura Multi-Agente**: Modelo "hub-and-spoke" robusto y predecible
 
+## 🚀 Estado del Despliegue
+
+[![GitHub Actions Workflow Status](https://github.com/rbugari/intelichat/actions/workflows/deploy.yml/badge.svg)](https://github.com/rbugari/intelichat/actions/workflows/deploy.yml)
+
+El despliegue de InteliChat se gestiona automáticamente a través de GitHub Actions.
+
+*   **`main`**: Rama de producción. Cualquier `push` a `main` disparará un despliegue automático a Railway (backend) y Vercel (frontend).
+*   **`dev`**: Rama de desarrollo. Todos los nuevos cambios deben realizarse aquí. Los `push` a `dev` **no** dispararán un despliegues automáticos.
+
+Para más detalles sobre el proceso de despliegue y la configuración de secretos, consulta [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## 🚀 Acceso Rápido
 
 ```
