@@ -69,7 +69,6 @@ console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.
 console.log('--------------------------------------------------------------------------');
 
 const express = require('express');
-// const cors = require('cors'); // ELIMINADO - USANDO CORS MANUAL
 const { handleUserInput } = require('./bot_logic');
 const { agentReportData } = require('./startup_report');
 const Database = require('./database');
@@ -82,26 +81,8 @@ console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SE
 const app = express();
 const sessions = new Map();
 
-// ===== CORS ULTRA-AGRESIVO PARA RAILWAY (ESPECÍFICO) =====
-app.use((req, res, next) => {
-    const origin = req.get('Origin');
-    const allowedOrigin = 'https://intelichat-five.vercel.app';
+// CORS MANEJADO POR RAILWAY A TRAVÉS DE VARIABLES DE ENTORNO
 
-    // Forzar header específico
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
-    res.setHeader('Vary', 'Origin'); // Indicar que la respuesta varía según el Origin
-
-    // Manejar preflight OPTIONS inmediatamente
-    if (req.method === 'OPTIONS') {
-        res.sendStatus(204); // No Content
-        return;
-    }
-    
-    next();
-});
 
 // Initialize database connection (with fallback)
 Database.initialize().catch(error => {
