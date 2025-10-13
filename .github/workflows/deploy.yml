@@ -2,9 +2,9 @@ name: Deploy to Railway and Vercel
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, release-1.8 ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, release-1.8 ]
 
 jobs:
   deploy-backend:
@@ -21,7 +21,8 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-                  cache-dependency-path: intelli_backend/package-lock.json        
+        cache-dependency-path: intelli_backend/package-lock.json
+        
     - name: Install Backend Dependencies
       run: |
         cd intelli_backend
@@ -49,7 +50,6 @@ jobs:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-        working-directory: ./kargho-web-frontend
         
   test:
     name: Run Tests
