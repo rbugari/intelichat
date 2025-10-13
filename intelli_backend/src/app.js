@@ -69,7 +69,7 @@ console.log(`✅ INTERNAL LLM CONFIG: Model for app tasks is '${internalModel}'.
 console.log('--------------------------------------------------------------------------');
 
 const express = require('express');
-const cors = require('cors');
+// const cors = require('cors'); // ELIMINADO - USANDO CORS MANUAL
 const { handleUserInput } = require('./bot_logic');
 const { agentReportData } = require('./startup_report');
 const Database = require('./database');
@@ -82,34 +82,26 @@ console.log(`🚀 Railway Debug: DB_HOST=${process.env.DB_HOST ? 'SET' : 'NOT SE
 const app = express();
 const sessions = new Map();
 
-// ===== Configuración de CORS Estándar =====
-const allowedOrigins = [
-  'https://intelichat-five.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500'
-];
+// ===== CORS ULTRA-AGRESIVO PARA RAILWAY (ESPECÍFICO) =====
+app.use((req, res, next) => {
+    const origin = req.get('Origin');
+    const allowedOrigin = 'https://intelichat-five.vercel.app';
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Permitir solicitudes sin 'origin' (como Postman o apps móviles)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // Forzar header específico
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
+    res.setHeader('Vary', 'Origin'); // Indicar que la respuesta varía según el Origin
+
+    // Manejar preflight OPTIONS inmediatamente
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(204); // No Content
+        return;
     }
-  },
-  credentials: true,
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  allowedHeaders: 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-};
-
-app.use(cors(corsOptions));
-
-// Responder a las solicitudes OPTIONS de preflight
-app.options('*', cors(corsOptions));
+    
+    next();
+});
 
 // Initialize database connection (with fallback)
 Database.initialize().catch(error => {
