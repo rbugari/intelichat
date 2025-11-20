@@ -73,10 +73,75 @@ const { handleUserInput } = require('./bot_logic');
 const { agentReportData } = require('./startup_report');
 const Database = require('./database');
 const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 
+// Importar rutas
+const authRoutes = require('./routes/auth');
+const clientRoutes = require('./routes/chats');
+const chatRoutes = require('./routes/chat');
+// const botRoutes = require('./routes/bot'); // TEMP: Comentado para debug
+// const configRoutes = require('./routes/config'); // TEMP: Comentado para debug
+// const agentRoutes = require('./routes/agents'); // TEMP: Comentado para debug
+// const toolsRoutes = require('./routes/tools'); // TEMP: Comentado para debug
 
+// Importar middlewares
+const errorHandler = require('./middleware/errorHandler');
+const authMiddleware = require('./middleware/auth');
 
 const app = express();
+
+// Declarar isDev antes de usarlo
+const isDev = process.env.NODE_ENV === 'development';
+
+// Log de inicio de la aplicación
+if (isDev) {
+  console.log('\n🚀 INICIANDO BACKEND EN MODO DEBUG');
+  console.log('📅 Timestamp:', new Date().toISOString());
+  console.log('📝 Todos los requests serán logueados');
+  console.log('🎯 Buscando peticiones web en puertos 3000 → 5000\n');
+}
+
+// Middleware de logging detallado
+const requestId = () => Math.random().toString(36).substring(2, 15);
+
+// Logger detallado para debug
+const detailedLogger = (req, res, next) => {
+  if (!isDev) return next();
+  
+  const id = requestId();
+  const timestamp = new Date().toISOString();
+  req.requestId = id;
+  
+  console.log(`\n📝 [${timestamp}] [${id}] 📥 INCOMING REQUEST`);
+  console.log(`   Method: ${req.method}`);
+  console.log(`   URL: ${req.originalUrl}`);
+  console.log(`   Headers:`, JSON.stringify(req.headers, null, 2));
+  
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`   Body:`, JSON.stringify(req.body, null, 2));
+  }
+  
+  // Capturar respuesta
+  const originalSend = res.send;
+  res.send = function(data) {
+    console.log(`\n📤 [${timestamp}] [${id}] 📤 OUTGOING RESPONSE`);
+    console.log(`   Status: ${res.statusCode}`);
+    console.log(`   Headers:`, JSON.stringify(res.getHeaders(), null, 2));
+    
+    if (data) {
+      const responseData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      console.log(`   Body:`, responseData.substring(0, 500) + (responseData.length > 500 ? '...' : ''));
+    }
+    console.log(`   ⏱️  Response time: ${Date.now() - req.startTime}ms\n`);
+    
+    originalSend.call(this, data);
+  };
+  
+  req.startTime = Date.now();
+  next();
+};
 
 // ===== Configuración de CORS Estándar =====
 const allowedOrigins = [
@@ -87,13 +152,13 @@ const allowedOrigins = [
 ];
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    console.log(`[CORS] Request from origin: ${origin || 'no-origin'}`);
+    // Permitir todos los origins en desarrollo para evitar BadRequestError
+    callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Enable pre-flight for all routes
@@ -108,12 +173,66 @@ Database.initialize().catch(error => {
 });
 
 // JSON parsing middleware - MUST BE BEFORE ANY BODY PROCESSING
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ 
+    limit: '50mb',
+    verify: (req, res, buf, encoding) => {
+        // Log para debugging
+        if (buf && buf.length > 0) {
+            console.log(`[JSON PARSER] Received ${buf.length} bytes`);
+        }
+    }
+}));
 
 // URL encoded parsing middleware
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ 
+    extended: true,
+    limit: '50mb'
+}));
 
+// Logger detallado ANTES de CORS y otras rutas
+if (isDev) {
+  console.log('🔍 LOGGER DETALLADO ACTIVADO');
+  console.log('📢 IMPORTANTE: Todos los requests serán logueados con detalles completos');
+  app.use(detailedLogger);
+}
 
+// Logger adicional para rutas específicas de API
+if (isDev) {
+  app.use('/api', (req, res, next) => {
+    console.log('\n🎯 API REQUEST DETECTADO');
+    console.log('📡 Method:', req.method);
+    console.log('🌐 URL:', req.originalUrl);
+    console.log('📦 Headers:', JSON.stringify(req.headers, null, 2));
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log('📄 Body:', JSON.stringify(req.body, null, 2));
+    }
+    console.log('🕐 Time:', new Date().toISOString());
+    console.log('🎯 API REQUEST - END\n');
+    next();
+  });
+}
+
+// Middleware para manejar errores de parsing
+app.use((error, req, res, next) => {
+    if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+        console.error('[PARSE ERROR] Bad JSON:', error.message);
+        return res.status(400).json({ error: 'Invalid JSON format' });
+    }
+    if (error.type === 'entity.too.large') {
+        console.error('[PARSE ERROR] Request too large:', error.message);
+        return res.status(413).json({ error: 'Request entity too large' });
+    }
+    next(error);
+});
+
+// Middleware para loggear todas las peticiones entrantes
+app.use((req, res, next) => {
+  console.log(`[INCOMING REQUEST] ${req.method} ${req.url}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('[REQUEST BODY]', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
 
 // Import and register chat routes AFTER middleware setup (PRD 1.5)
 // Chat routes (real database)
@@ -145,12 +264,12 @@ app.get('/api/test-cors', (req, res) => {
 
 // Endpoint temporal para debug/config (solución para frontend) - ANTES de las rutas API
 app.get('/debug/config', async (req, res) => {
-
+    try {
         const clientes = await Database.query('SELECT * FROM cfg_cliente WHERE is_active = 1');
         const chatbots = await Database.query('SELECT * FROM cfg_chatbot WHERE is_active = 1');
         const agentes = await Database.query('SELECT * FROM cfg_agente WHERE is_active = 1');
         
-        console.log('🔍 DEBUG: Query results:', { clientes: clientes.length, chatbots: chatbots.length, agentes: agentes.length });
+
         
         res.json({
             clientes,
@@ -167,8 +286,32 @@ app.get('/debug/config', async (req, res) => {
     }
 });
 
-const chatRoutes = require('./routes/chat');
+app.get('/api/ping', (req, res) => {
+  console.log('\n🏓 PING ENDPOINT - Request received');
+  console.log('📡 Method:', req.method);
+  console.log('🌐 URL:', req.originalUrl);
+  console.log('📡 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🕐 Time:', new Date().toISOString());
+  res.send('pong');
+});
 
+// Endpoint de test para debug
+app.get('/api/test', (req, res) => {
+  console.log('\n🧪 TEST ENDPOINT - Request received');
+  console.log('📡 Method:', req.method);
+  console.log('🌐 URL:', req.originalUrl);
+  console.log('📦 Query:', JSON.stringify(req.query, null, 2));
+  console.log('📡 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🕐 Time:', new Date().toISOString());
+  
+  res.json({ 
+    message: 'Backend is responding - logs working!',
+    timestamp: new Date().toISOString(),
+    url: req.originalUrl,
+    query: req.query,
+    headers: req.headers
+  });
+});
 
 // Register form routes
 const formRoutes = require('./routes/forms');
@@ -176,8 +319,10 @@ app.use('/api/forms', formRoutes);
 
 
 // Register API routes
+console.log('📋 REGISTRANDO RUTAS API...');
 const apiRoutes = require('./routes/index');
 app.use('/api', apiRoutes);
+console.log('✅ RUTAS API REGISTRADAS - /api/*');
 
 
 
@@ -214,7 +359,7 @@ app.get('/health', async (req, res) => {
             message: 'Server is healthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime() + 's',
-            port: process.env.PORT || 3000,
+            port: process.env.PORT || 5000,
             ...(includeConfig && { config: configData })
         };
         
@@ -275,26 +420,45 @@ app.get('/api/system/info', async (req, res) => {
     const agents = await Database.query(agentsQuery);
 
     // Obtener herramientas con sus rutas y autenticación
-    const toolsQuery = `
+    const toolsV2Rows = await Database.query(`
       SELECT 
         h.id,
         h.nombre,
         h.descripcion,
         h.base_url,
         h.agente_id,
+        h.tipo,
+        h.herramienta_auth_id,
         auth.nombre as auth_name,
         auth.tipo as auth_type,
-        r.nombre as route_name,
-        r.path as endpoint_path,
-        r.metodo as endpoint_method,
-        r.notas as endpoint_description
-      FROM cfg_herramienta h
+        h.rutas_json
+      FROM cfg_herramienta_v2 h
       LEFT JOIN cfg_herramienta_auth auth ON h.herramienta_auth_id = auth.id
-      LEFT JOIN cfg_herramienta_ruta r ON h.id = r.herramienta_id
       WHERE h.is_active = 1
-    `;
-    
-    const tools = await Database.query(toolsQuery);
+    `);
+    const tools = [];
+    for (const row of toolsV2Rows) {
+      let endpoints = [];
+      try {
+        const rutas = JSON.parse(row.rutas_json || '[]');
+        endpoints = rutas.map(r => ({
+          name: r.nombre,
+          path: r.path,
+          method: r.metodo,
+          description: r.notas || row.descripcion
+        }));
+      } catch (_) {}
+      tools.push({
+        id: row.id,
+        nombre: row.nombre,
+        descripcion: row.descripcion,
+        base_url: row.base_url,
+        agente_id: row.agente_id,
+        auth_name: row.auth_name,
+        auth_type: row.auth_type,
+        endpoints
+      });
+    }
 
     // Organizar herramientas por agente
     const agentsWithTools = agents.map(agent => {
@@ -443,33 +607,36 @@ app.get('/api/debug/config', async (req, res) => {
     const agentes = await Database.query(agentesQuery, [chatbotId]);
 
     // Obtener herramientas con sus rutas para cada agente
-    const herramientasQuery = `
+    const herramientasV2 = await Database.query(`
       SELECT 
         h.id, h.nombre, h.descripcion, h.base_url, h.agente_id, h.tipo,
         auth.nombre as auth_name, auth.tipo as auth_type,
-        r.nombre as route_name, r.path as endpoint_path, r.metodo as endpoint_method, r.notas as endpoint_description
-      FROM cfg_herramienta h
+        h.rutas_json
+      FROM cfg_herramienta_v2 h
       LEFT JOIN cfg_herramienta_auth auth ON h.herramienta_auth_id = auth.id
-      LEFT JOIN cfg_herramienta_ruta r ON h.id = r.herramienta_id
       WHERE h.is_active = 1 AND h.agente_id IN (
         SELECT id FROM cfg_agente WHERE chatbot_id = ? AND is_active = 1
       )
-      ORDER BY h.agente_id, h.nombre, r.nombre
-    `;
-    const herramientas = await Database.query(herramientasQuery, [chatbotId]);
+      ORDER BY h.agente_id, h.nombre
+    `, [chatbotId]);
 
     // Organizar herramientas por agente en las nuevas listas
     const agentesConHerramientas = agentes.map(agente => {
-      const herramientasAgente = herramientas.filter(h => h.agente_id === agente.id);
+      const herramientasAgente = herramientasV2.filter(h => h.agente_id === agente.id);
 
-      const invocables_api = herramientasAgente
-        .filter(h => (h.tipo === 'api' || h.tipo === 'mcp') && h.route_name)
-        .map(h => ({
-          nombre: h.route_name,
-          descripcion: h.notas || h.descripcion,
-          endpoint: `${h.metodo.toUpperCase()} ${h.base_url || ''}${h.endpoint_path}`,
-          auth: h.auth_name || 'none'
-        }));
+      let invocables_api = [];
+      herramientasAgente.forEach(h => {
+        try {
+          const rutas = JSON.parse(h.rutas_json || '[]');
+          const endpoints = rutas.filter(r => (h.tipo === 'api' || h.tipo === 'mcp')).map(r => ({
+            nombre: r.nombre,
+            descripcion: r.notas || h.descripcion,
+            endpoint: `${(r.metodo || 'get').toUpperCase()} ${h.base_url || ''}${r.path}`,
+            auth: h.auth_name || 'none'
+          }));
+          invocables_api = invocables_api.concat(endpoints);
+        } catch (_) {}
+      });
 
       const forms = {};
       herramientasAgente.forEach(h => {
@@ -497,7 +664,7 @@ app.get('/api/debug/config', async (req, res) => {
       agente_activo: agentesConHerramientas[0] || null,
       estadisticas: {
         total_agentes: agentesConHerramientas.length,
-        total_herramientas: new Set(herramientas.map(h => h.id)).size,
+        total_herramientas: new Set(herramientasV2.map(h => h.id)).size,
         agentes_activos: agentesConHerramientas.filter(a => a.is_active).length
       },
       configuracion: {
@@ -519,6 +686,92 @@ app.get('/api/debug/config', async (req, res) => {
     });
   }
 });
+
+app.get('/api/debug/traces', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit || '50')
+    const { getRecent } = require('./services/traceStore')
+    const data = getRecent(limit)
+    res.json({ success: true, data })
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to get traces' })
+  }
+});
+
+// Auditoría de agentes (solo lectura)
+app.get('/api/audit/agents', async (req, res) => {
+  try {
+    const agentes = await Database.query(`
+      SELECT a.id, a.nombre, a.chatbot_id, a.llm_modelo_id, a.is_active, a.is_default,
+             CHAR_LENGTH(a.system_prompt_es) AS sp_es_len,
+             CHAR_LENGTH(a.system_prompt_en) AS sp_en_len
+      FROM cfg_agente a
+      ORDER BY a.chatbot_id, a.orden, a.id
+    `)
+
+    const results = []
+    for (const a of agentes) {
+      const modeloRows = await Database.query(`
+        SELECT m.nombre_modelo, p.nombre AS proveedor
+        FROM cfg_llm_modelo m
+        JOIN cfg_llm_proveedor p ON p.id = m.proveedor_id
+        WHERE m.id = ?
+      `, [a.llm_modelo_id])
+
+      const handoffs = await Database.query(
+        'SELECT trigger_codigo, to_agente_id, is_active FROM cfg_agente_handoff WHERE from_agente_id = ?',
+        [a.id]
+      )
+
+      const tools = await Database.query(
+        'SELECT id, nombre, tipo, is_active FROM cfg_herramienta WHERE agente_id = ?',
+        [a.id]
+      )
+
+      let rutasCount = 0
+      if (tools.length) {
+        const ids = tools.map(t => t.id).join(',')
+        const rc = await Database.query(`SELECT COUNT(*) AS cnt FROM cfg_herramienta_ruta WHERE herramienta_id IN (${ids})`)
+        rutasCount = rc[0]?.cnt || 0
+      }
+
+      const ragCartuchos = await Database.query(
+        'SELECT COUNT(*) AS cnt FROM cfg_agente_rag_cartucho WHERE agente_id = ?',
+        [a.id]
+      )
+      const ragPolitica = await Database.query(
+        'SELECT confianza_min, latencia_max_ms, fallback_limite FROM cfg_rag_politica WHERE agente_id = ?',
+        [a.id]
+      )
+
+      const promptsSum = await Database.query(
+        'SELECT COUNT(*) AS cnt, SUM(is_active=1) AS actives FROM cfg_agente_prompt WHERE agente_id = ?',
+        [a.id]
+      )
+
+      results.push({
+        id: a.id,
+        nombre: a.nombre,
+        chatbot_id: a.chatbot_id,
+        is_active: !!a.is_active,
+        is_default: !!a.is_default,
+        sp_es_len: a.sp_es_len || 0,
+        sp_en_len: a.sp_en_len || 0,
+        modelo: modeloRows[0] || null,
+        handoffs,
+        tools: tools.map(t => ({ nombre: t.nombre, tipo: t.tipo, is_active: !!t.is_active })),
+        rutas_count: rutasCount,
+        rag: { cartuchos: ragCartuchos[0]?.cnt || 0, politica: ragPolitica[0] || null },
+        prompts_summary: promptsSum[0] || { cnt: 0, actives: 0 }
+      })
+    }
+
+    res.json({ success: true, count: results.length, agentes: results })
+  } catch (error) {
+    console.error('Error en /api/audit/agents:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
 
 // Legacy system info endpoint (keep for compatibility)
 app.get('/system-info', async (req, res) => {
@@ -570,10 +823,29 @@ app.get('/', (req, res) => {
 // Export the app and sessions for testing
 module.exports = { app, sessions };
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+const PORT = process.env.PORT || 5000;
+// Configurar timeouts del servidor
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server is running on port ${PORT}`);
   console.log(`🔗 Local: http://localhost:${PORT}`);
   console.log(`🚀 Railway: Server listening on 0.0.0.0:${PORT}`);
   console.log(`🏥 Health endpoint: http://localhost:${PORT}/health`);
+  console.log(`🔍 DEBUG MODE: ${process.env.NODE_ENV === 'development' ? 'ACTIVADO' : 'DESACTIVADO'}`);
+});
+
+// Configurar timeouts para evitar request aborted
+server.timeout = 300000; // 5 minutos (aumentado para evitar timeouts)
+server.keepAliveTimeout = 65000; // 65 segundos
+server.headersTimeout = 66000; // 66 segundos (debe ser mayor que keepAliveTimeout)
+
+// Manejar errores del servidor
+server.on('error', (error) => {
+  console.error('[SERVER ERROR]:', error);
+});
+
+server.on('clientError', (err, socket) => {
+  console.error('[CLIENT ERROR]:', err.message);
+  if (socket.writable) {
+    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+  }
 });
